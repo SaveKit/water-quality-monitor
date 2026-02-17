@@ -1,0 +1,25 @@
+# AWS SAM
+.aws-sam/
+samconfig.toml
+
+# Python
+__pycache__/
+*.pyc
+venv/
+.pytest_cache/
+
+# Environment Variables & Secrets
+.env
+secrets.h
+*.private.key
+*.cert.pem
+*.public.key
+*.json
+
+# Arduino
+build/
+*.elf
+*.bin
+
+# OS
+.DS_Store
