@@ -2,13 +2,15 @@
 #include <WiFiClientSecure.h>
 #include <MQTTClient.h>
 #include <ArduinoJson.h>
+#include <OneWire.h>
+#include <DallasTemperature.h>
 #include "secrets.h"
 
 // ==========================================
 // 📌 ตั้งค่าประจำตัวบอร์ด
 // ==========================================
 #define NODE_NAME "Node01"
-const float CALIBRATION_VALUE = 0.0;
+const float CALIBRATION_PH = 0.0;
 
 // ==========================================
 // กำหนด Hardware
@@ -200,7 +202,7 @@ void loop() {
   }
 
   client.loop(); 
-  readSensor();
+  readSensors();
 
   // 3. ยิงข้อมูลทุก 10 วินาที
   if (millis() - lastMillis > 10000) {
