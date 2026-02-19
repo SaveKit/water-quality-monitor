@@ -5,29 +5,44 @@
 #include "secrets.h"
 
 // ==========================================
-// 📌 ตั้งค่าประจำตัวบอร์ด (เปลี่ยนตรงนี้เมื่อใช้ Node อื่น)
+// 📌 ตั้งค่าประจำตัวบอร์ด
 // ==========================================
 #define NODE_NAME "Node01"
-const float CALIBRATION_VALUE = 0.0; // ใส่ค่า Calibration ของบอร์ดนี้
+const float CALIBRATION_VALUE = 0.0;
 
 // ==========================================
 // กำหนด Hardware
 // ==========================================
-const int PIN_PH = 36;    // ขา VP (GPIO 36) 
+const int PIN_PH = 36;          // ขา Analog สำหรับ pH (VP)
+const int PIN_TDS = 39;         // ขา Analog สำหรับ TDS (VN)
+const int PIN_TURBIDITY = 34;   // ขา Analog สำหรับ Turbidity
+const int PIN_TEMP = 4;         // ขา Digital สำหรับ DS18B20
+
+// ตัวต้านทานสำหรับ Voltage Divider ของ pH
 const float R1 = 10000.0; // 10k
 const float R2 = 20000.0; // 20k (10k+10k)
 
-// ตัวแปร Global
-float sensorVoltage = 0.0; 
+// ==========================================
+// ตัวแปร Global สำหรับเก็บค่าเซ็นเซอร์
+// ==========================================
 float phValue = 0.0;
+float phVoltage = 0.0;
+float tdsValue = 0.0;
+float tdsVoltage = 0.0;
+float turbidityValue = 0.0;
+float turbidityVoltage = 0.0;
+float tempValue = 0.0;
+
 unsigned long lastMillis = 0;
 
-// สร้าง Client
+// สร้าง Client และ Object สำหรับเซ็นเซอร์
 WiFiClientSecure net = WiFiClientSecure(); 
 MQTTClient client = MQTTClient(512);       
+OneWire oneWire(PIN_TEMP);
+DallasTemperature tempSensor(&oneWire);
 
 // ==========================================
-// 1. ฟังก์ชันเชื่อมต่อ Wi-Fi
+// ฟังก์ชันเชื่อมต่อ Wi-Fi
 // ==========================================
 void connectWiFi() {
   if (WiFi.status() == WL_CONNECTED) return; 
@@ -42,7 +57,7 @@ void connectWiFi() {
 }
 
 // ==========================================
-// 2. ฟังก์ชันตั้งเวลาจาก Internet (NTP)
+// ฟังก์ชันตั้งเวลาจาก Internet (NTP)
 // ==========================================
 void syncTime() {
   Serial.print("Setting time using SNTP");
@@ -57,7 +72,7 @@ void syncTime() {
 }
 
 // ==========================================
-// 3. ฟังก์ชันเชื่อมต่อ AWS IoT
+// ฟังก์ชันเชื่อมต่อ AWS IoT
 // ==========================================
 void connectAWS() {
   if (client.connected()) return; 
@@ -72,40 +87,67 @@ void connectAWS() {
 }
 
 // ==========================================
-// 4. ฟังก์ชันอ่านค่าและคำนวณเซ็นเซอร์
+// ฟังก์ชันตัวช่วยอ่านค่า Analog ให้นิ่งขึ้น
 // ==========================================
-void readSensor() {
+float getStableVoltage(int pin) {
   unsigned long adcSum = 0;
   int samples = 20; 
-  
   for (int i = 0; i < samples; i++) {
-    adcSum += analogRead(PIN_PH);
+    adcSum += analogRead(pin);
     delay(10); 
   }
-  
   float avgADC = (float)adcSum / samples;
-  float espVoltage = (avgADC / 4095.0) * 3.3;
-  
-  // ชดเชย Voltage Divider กลับเป็นไฟ 5V
-  sensorVoltage = espVoltage * ((R1 + R2) / R2);
-  
-  // แปลงเป็น pH
-  phValue = 3.5 * sensorVoltage + CALIBRATION_VALUE;
-
-  Serial.print("ADC: "); Serial.print(avgADC, 0);
-  Serial.print(" | ESP V: "); Serial.print(espVoltage, 2);
-  Serial.print("V | Sensor V: "); Serial.print(sensorVoltage, 2); 
-  Serial.print("V | pH: "); Serial.println(phValue, 2);
+  return (avgADC / 4095.0) * 3.3; // คืนค่าเป็น Voltage ของ ESP32
 }
 
 // ==========================================
-// 5. ฟังก์ชันสร้าง JSON และ Publish
+// ฟังก์ชันอ่านค่าและคำนวณเซ็นเซอร์ทั้งหมด
+// ==========================================
+void readSensors() {
+  Serial.println("--- Reading Sensors ---");
+
+  // 1. อ่านค่าอุณหภูมิ (DS18B20)
+  tempSensor.requestTemperatures(); 
+  tempValue = tempSensor.getTempCByIndex(0);
+  Serial.print("Temp: "); Serial.print(tempValue); Serial.println(" C");
+
+  // 2. อ่านค่า pH
+  float espPhVoltage = getStableVoltage(PIN_PH);
+  phVoltage = espPhVoltage * ((R1 + R2) / R2); // ชดเชย Voltage Divider
+  phValue = 3.5 * phVoltage + CALIBRATION_PH;
+  Serial.print("pH: "); Serial.print(phValue); Serial.print(" (V: "); Serial.print(phVoltage); Serial.println(")");
+
+  // 3. อ่านค่า TDS (ชดเชยอุณหภูมิด้วย)
+  tdsVoltage = getStableVoltage(PIN_TDS);
+  // สูตรคำนวณ TDS มาตรฐาน (ต้องสอบเทียบค่าคงที่อีกครั้ง)
+  float compensationCoefficient = 1.0 + 0.02 * (tempValue - 25.0);
+  float compensationVolatge = tdsVoltage / compensationCoefficient;
+  tdsValue = (133.42 * pow(compensationVolatge, 3) - 255.86 * pow(compensationVolatge, 2) + 857.39 * compensationVolatge) * 0.5;
+  Serial.print("TDS: "); Serial.print(tdsValue); Serial.print(" ppm (V: "); Serial.print(tdsVoltage); Serial.println(")");
+
+  // 4. อ่านค่าความขุ่น (Turbidity)
+  turbidityVoltage = getStableVoltage(PIN_TURBIDITY);
+  // สูตรคำนวณความขุ่นมาตรฐาน (ต้องสอบเทียบอีกครั้ง)
+  if(turbidityVoltage < 2.5){
+    turbidityValue = 3000;
+  } else {
+    turbidityValue = -1120.4 * pow(turbidityVoltage, 2) + 5742.3 * turbidityVoltage - 4352.9;
+    if(turbidityValue < 0) turbidityValue = 0;
+  }
+  Serial.print("Turbidity: "); Serial.print(turbidityValue); Serial.print(" NTU (V: "); Serial.print(turbidityVoltage); Serial.println(")");
+  Serial.println("-----------------------");
+}
+
+// ==========================================
+// ฟังก์ชันสร้าง JSON และ Publish
 // ==========================================
 void publishData() {
-  StaticJsonDocument<200> doc;
+  StaticJsonDocument<300> doc;
   doc["node_id"] = NODE_NAME; 
   doc["ph"] = phValue;
-  doc["voltage"] = sensorVoltage; 
+  doc["tds"] = tdsValue;
+  doc["turbidity"] = turbidityValue;
+  doc["temperature"] = tempValue;
   
   char jsonBuffer[512];
   serializeJson(doc, jsonBuffer);
@@ -123,6 +165,8 @@ void setup() {
   Serial.begin(115200); 
   analogReadResolution(12); 
   
+  tempSensor.begin(); // เริ่มต้นการทำงานเซ็นเซอร์อุณหภูมิ
+
   Serial.print("Target Board: ");
   Serial.println(NODE_NAME);
 
