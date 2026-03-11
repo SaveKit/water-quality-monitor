@@ -3,8 +3,21 @@ Transform: AWS::Serverless-2016-10-31
 Description: Water Quality Monitoring System Infrastructure
 
 Resources:
-  # Placeholder for Timestream, Lambda, Cognito
-  WaterQualityDB:
-    Type: AWS::Timestream::Database
+  # DynamoDB Table
+  WaterQualityDataTable:
+    Type: AWS::DynamoDB::Table
     Properties:
-      DatabaseName: WaterQualityDB
+      TableName: WaterQualityData
+      # ตั้งค่า Primary Key (ใช้สำหรับค้นหา)
+      AttributeDefinitions:
+        - AttributeName: node_id
+          AttributeType: S  # String (เช่น "Node01")
+        - AttributeName: timestamp
+          AttributeType: N  # Number (เวลาแบบ Unix Timestamp)
+      KeySchema:
+        - AttributeName: node_id
+          KeyType: HASH     # Partition Key (จัดกลุ่มตาม Node)
+        - AttributeName: timestamp
+          KeyType: RANGE    # Sort Key (เรียงลำดับตามเวลา)
+      # ใช้โหมดจ่ายเงินตามการใช้งานจริง (เหมาะกับโปรเจกต์ที่มีทราฟฟิกน้อย)
+      BillingMode: PAY_PER_REQUEST
