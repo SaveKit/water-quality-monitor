@@ -6,7 +6,7 @@
 // ตั้งค่าประจำตัวบอร์ด
 // ==========================================
 #define NODE_NAME "Node01"
-const float CALIBRATION_PH = 0.0;     // ค่าชดเชยสำหรับเซ็นเซอร์ pH
+const float CALIBRATION_PH = -0.85;     // ค่าชดเชยสำหรับเซ็นเซอร์ pH
 
 // ==========================================
 // กำหนดขา Hardware สำหรับ Arduino UNO
@@ -113,15 +113,15 @@ void readSensors() {
   turbidityVoltage = getStableVoltage(PIN_TURBIDITY);
 
   // ตั้งค่าอ้างอิงของ Hardware จริง (ปรับได้ตามการคาริเบรท)
-  float vClearUser = 2.04; // โวลต์สูงสุดที่บอร์ดอ่านได้ตอนน้ำใสสุด
+  float vClearUser = 1.938; // โวลต์สูงสุดที่บอร์ดอ่านได้ตอนน้ำใสสุด
   float vDirtyUser = 0.00; // โวลต์ตอนน้ำขุ่นสุด (หรือเซ็นเซอร์โดนบัง)
   
   // ตั้งค่าอ้างอิงตามสมการมาตรฐานของเซ็นเซอร์
   float vClearStd = 4.20;  
   float vDirtyStd = 2.50;  
 
-  // ระบบ Deadband: ถ้าน้ำใสเกินไปให้ค่าขุ่นเป็น 0 ป้องกันเลขแกว่ง
-  if (turbidityVoltage >= 2.00) { 
+  // ปรับระบบ Deadband ให้หักลบจาก vClearUser ไป 0.02V เพื่อป้องกันเลขแกว่งตอนน้ำใส
+  if (turbidityVoltage >= (vClearUser - 0.02)) { 
     turbidityValue = 0.0; 
   } else {
     // ป้องกันค่าโวลต์ติดลบ
@@ -143,17 +143,18 @@ void readSensors() {
 // ==========================================
 // ฟังก์ชันแพ็กข้อมูลเป็น JSON และส่งออกทาง Serial
 // ==========================================
-void sendDataToESP8266() {
+void sendDataToESP32() {
   StaticJsonDocument<200> doc;
   doc["node_id"] = NODE_NAME; 
   doc["ph"] = phValue;
   doc["tds"] = tdsValue;
   doc["turbidity"] = turbidityValue;
+  // doc["turbidity_v"] = turbidityVoltage;
   doc["temperature"] = tempValue;
 
   // แปลงข้อมูลให้อยู่ในรูปแบบบรรทัดเดียว แล้วพ่นออกทางพอร์ต Serial
   serializeJson(doc, Serial);
-  Serial.println(); // เคาะบรรทัดใหม่เพื่อให้ ESP8266 รู้ว่าจบข้อความ 1 ชุด
+  Serial.println(); // เคาะบรรทัดใหม่เพื่อให้ ESP32 รู้ว่าจบข้อความ 1 ชุด
 }
 
 // ==========================================
@@ -170,6 +171,6 @@ void loop() {
     lastMillis = millis();
 
     readSensors();          // สั่งอ่านเซ็นเซอร์ทั้งหมด
-    sendDataToESP8266();    // ส่ง JSON ออกไปหา Gateway
+    sendDataToESP32();    // ส่ง JSON ออกไปหา Gateway
   }
 }
