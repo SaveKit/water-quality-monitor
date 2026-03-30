@@ -7,6 +7,7 @@
 // ==========================================
 #define NODE_NAME "Node02"
 const float CALIBRATION_PH = -3.85;     // ค่าชดเชยสำหรับเซ็นเซอร์ pH
+const float CALIBRATION_K_TDS = 1.1229; // K ที่ได้จากการ Calibrate TDS
 
 // ==========================================
 // กำหนดขา Hardware สำหรับ Arduino UNO
@@ -112,9 +113,11 @@ void readSensors() {
   float compensationCoefficient = 1.0 + 0.02 * (tempValue - 25.0);
   // ปรับแรงดันไฟฟ้ากลับสู่มาตรฐาน 25 องศา
   float compensationVolatge = tdsVoltage / compensationCoefficient;
-  // เข้าสมการแปลงค่าโวลต์เป็น TDS (ppm)
-  tdsValue = (133.42 * pow(compensationVolatge, 3) - 255.86 * pow(compensationVolatge, 2) + 857.39 * compensationVolatge) * 0.5;
-
+  // เข้าสมการแปลงค่าโวลต์เป็น rawTDS (ppm)
+  float rawTDS = 133.42 * pow(compensationVolatge, 3) - 255.86 * pow(compensationVolatge, 2) + 857.39 * compensationVolatge;
+  // คำนวณ TDS จริงโดยใช้ค่าคงที่ K
+  tdsValue = (rawTDS * 0.5) * CALIBRATION_K_TDS;
+  
   // ---------------------------------------------------------
   // 4. อ่านค่าความขุ่น (Turbidity)
   // ---------------------------------------------------------
@@ -192,7 +195,7 @@ void setup() {
 
 void loop() {
   // ทำงานแบบ Non-blocking: อ่านค่าและส่งข้อมูลทุกๆ 30 วินาที
-  if (millis() - lastMillis > 30000) {
+  if (millis() - lastMillis > 10000) {
     lastMillis = millis();
 
     readSensors();          // สั่งอ่านเซ็นเซอร์ทั้งหมด
