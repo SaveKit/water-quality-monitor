@@ -1,45 +1,66 @@
 import boto3
 import pandas as pd
 from boto3.dynamodb.conditions import Key
-import time
+from datetime import datetime
+import pytz
 
 
-def export_dynamodb_to_csv(table_name, node_id, output_filename):
+def export_dynamodb_to_csv(
+    table_name, node_id, output_filename, start_time=None, end_time=None
+):
     print(f"กำลังเชื่อมต่อกับตาราง: {table_name}...")
 
-    # 1. เชื่อมต่อ AWS DynamoDB (ใช้ credentials เดียวกับใช้รันคำสั่ง sam deploy)
+    # 1. เชื่อมต่อ AWS DynamoDB
     dynamodb = boto3.resource("dynamodb")
     table = dynamodb.Table(table_name)
 
+    # 2. จัดการเงื่อนไขการค้นหา (Key Condition)
+    condition = Key("node_id").eq(node_id)
+
+    # หากมีการระบุช่วงเวลา ให้แปลงจาก String (เวลาไทย) เป็น Milliseconds (UTC)
+    if start_time and end_time:
+        bkk_tz = pytz.timezone("Asia/Bangkok")
+
+        start_dt = bkk_tz.localize(datetime.strptime(start_time, "%Y-%m-%d %H:%M:%S"))
+        end_dt = bkk_tz.localize(datetime.strptime(end_time, "%Y-%m-%d %H:%M:%S"))
+
+        start_ms = int(start_dt.timestamp() * 1000)
+        end_ms = int(end_dt.timestamp() * 1000)
+
+        print(f"กรองข้อมูลตั้งแต่: {start_time} ถึง {end_time}")
+        condition = condition & Key("timestamp").between(start_ms, end_ms)
+    else:
+        print("ดึงข้อมูลทั้งหมด (ไม่ได้ระบุช่วงเวลา)")
+
     items = []
 
-    # 2. คิวรีข้อมูลเฉพาะของ Node01
+    # 3. คิวรีข้อมูลรอบแรก
     print(f"เริ่มดึงข้อมูลของ {node_id}...")
-    response = table.query(KeyConditionExpression=Key("node_id").eq(node_id))
+    response = table.query(KeyConditionExpression=condition)
     items.extend(response.get("Items", []))
 
-    # 3. ลูปดึงข้อมูลหน้าถัดไป (กรณีข้อมูลใหญ่เกิน 1MB)
+    # 4. ลูปดึงข้อมูลหน้าถัดไป (กรณีข้อมูลเยอะ)
     while "LastEvaluatedKey" in response:
         print("ดึงข้อมูลหน้าถัดไป...")
         response = table.query(
-            KeyConditionExpression=Key("node_id").eq(node_id),
+            KeyConditionExpression=condition,
             ExclusiveStartKey=response["LastEvaluatedKey"],
         )
         items.extend(response.get("Items", []))
 
     if not items:
-        print("❌ ไม่พบข้อมูลในระบบ")
+        print("❌ ไม่พบข้อมูลในระบบ (หรือไม่มีข้อมูลในช่วงเวลาที่กำหนด)")
         return
 
     print(f"✅ ดึงข้อมูลสำเร็จทั้งหมด: {len(items)} แถว")
 
-    # 4. แปลงข้อมูลเป็น Pandas DataFrame
+    # 5. แปลงข้อมูลเป็น Pandas DataFrame
     df = pd.DataFrame(items)
 
-    # 5. แปลงชนิดข้อมูลและจัดการเวลา
+    # 6. แปลงชนิดข้อมูลและจัดการเวลา (เพิ่ม co2 แล้ว)
     if "timestamp" in df.columns:
-        # แปลง Decimal เป็น float ก่อนเพื่อให้ pandas ทำงานได้ (แก้ Error ตรงนี้!)
-        for col in ["timestamp", "ph", "tds", "turbidity", "temperature"]:
+        # แปลงเป็น float เพื่อให้ pandas นำไปพล็อตกราฟหรือคำนวณต่อได้
+        for col in ["timestamp", "ph", "tds", "turbidity", "temperature", "co2"]:
             if col in df.columns:
                 df[col] = df[col].astype(float)
 
@@ -49,23 +70,39 @@ def export_dynamodb_to_csv(table_name, node_id, output_filename):
             .dt.tz_localize("UTC")
             .dt.tz_convert("Asia/Bangkok")
         )
-        # ลบ timezone info ออกเพื่อให้เซฟลง csv ได้ง่าย หรือจัดฟอร์แมตใหม่
+        # ลบ timezone info ออกเพื่อให้เซฟลง csv ได้ง่าย
         df["datetime"] = df["datetime"].dt.strftime("%Y-%m-%d %H:%M:%S")
 
-    # 6. จัดเรียงคอลัมน์ให้สวยงาม (เอา datetime ขึ้นก่อน ตามด้วยเซ็นเซอร์)
-    cols = ["node_id", "datetime", "timestamp", "ph", "tds", "turbidity", "temperature"]
-    # กรองเอาเฉพาะคอลัมน์ที่มีจริงใน df ป้องกัน error
+    # 7. จัดเรียงคอลัมน์ให้สวยงาม (เพิ่ม co2 ต่อท้าย)
+    cols = [
+        "node_id",
+        "datetime",
+        "timestamp",
+        "ph",
+        "tds",
+        "turbidity",
+        "temperature",
+        "co2",
+    ]
     df = df[[c for c in cols if c in df.columns]]
 
-    # 7. บันทึกเป็นไฟล์ CSV
-    df.to_csv(output_filename, index=False, encoding="utf-8")
-    print(f"บันทึกไฟล์เสร็จสิ้น: {output_filename}")
+    # 8. บันทึกเป็นไฟล์ CSV
+    df.to_csv(output_filename, index=False)
+    print(f"📁 บันทึกไฟล์สำเร็จ: {output_filename}")
 
 
+# ==========================================
+# ส่วนสำหรับตั้งค่าและรันสคริปต์
+# ==========================================
 if __name__ == "__main__":
-    # ตั้งค่าตัวแปรให้ตรงกับโปรเจกต์ของคุณ
-    TARGET_TABLE = "WaterQualityData"
-    TARGET_NODE = "Node01"
-    OUTPUT_FILE = "node01_24h_data.csv"
 
-    export_dynamodb_to_csv(TARGET_TABLE, TARGET_NODE, OUTPUT_FILE)
+    # ตัวอย่างการใช้งาน: ระบุช่วงเวลาที่ต้องการ (ปี-เดือน-วัน ชั่วโมง:นาที:วินาที)
+    # หากต้องการดึงทั้งหมด ให้เปลี่ยนเป็น: start_time=None, end_time=None
+
+    export_dynamodb_to_csv(
+        table_name="WaterQualityData",
+        node_id="Node02",
+        output_filename="node02_data.csv",
+        start_time="2026-03-31 00:00:00",  # เวลาเริ่มต้น
+        end_time="2026-03-31 23:59:59",  # เวลาสิ้นสุด
+    )
