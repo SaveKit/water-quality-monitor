@@ -21,8 +21,8 @@ const int PIN_TEMP = 2;               // ขา Digital 2 สำหรับ DS1
 // ==========================================
 // ตั้งค่าคงที่สำหรับ MQ-135
 // ==========================================
-const float RL_VALUE = 1.0;           // ค่า R load บนบอร์ด (สมมติ 1k ohm)
-float Ro = 3.84;                      // ค่า Ro ในอากาศสะอาด (ต้อง Calibrate ใหม่ในพื้นที่จริง)
+const float RL_VALUE = 1.0;           // ค่า R load บนบอร์ด (1k ohm)
+float Ro = 0.760;                      // ค่า Ro ในอากาศสะอาด (ต้อง Calibrate ใหม่ในพื้นที่จริง)
 
 // ==========================================
 // ตัวแปร Global สำหรับเก็บค่าเซ็นเซอร์
@@ -195,7 +195,7 @@ void setup() {
 
 void loop() {
   // ทำงานแบบ Non-blocking: อ่านค่าและส่งข้อมูลทุกๆ 30 วินาที
-  if (millis() - lastMillis > 10000) {
+  if (millis() - lastMillis > 30000) {
     lastMillis = millis();
 
     readSensors();          // สั่งอ่านเซ็นเซอร์ทั้งหมด
