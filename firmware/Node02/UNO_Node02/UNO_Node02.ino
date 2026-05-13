@@ -6,7 +6,7 @@
 // ตั้งค่าประจำตัวบอร์ด
 // ==========================================
 #define NODE_NAME "Node02"
-const float CALIBRATION_PH = -3.85;     // ค่าชดเชยสำหรับเซ็นเซอร์ pH
+const float CALIBRATION_PH = -2.85;     // ค่าชดเชยสำหรับเซ็นเซอร์ pH
 const float CALIBRATION_K_TDS = 1.1229; // K ที่ได้จากการ Calibrate TDS
 
 // ==========================================
@@ -22,7 +22,7 @@ const int PIN_TEMP = 2;               // ขา Digital 2 สำหรับ DS1
 // ตั้งค่าคงที่สำหรับ MQ-135
 // ==========================================
 const float RL_VALUE = 1.0;           // ค่า R load บนบอร์ด (1k ohm)
-float Ro = 0.760;                      // ค่า Ro ในอากาศสะอาด (ต้อง Calibrate ใหม่ในพื้นที่จริง)
+float Ro = 0.812;                      // ค่า Ro ในอากาศสะอาด (ต้อง Calibrate ใหม่ในพื้นที่จริง)
 
 // ==========================================
 // ตัวแปร Global สำหรับเก็บค่าเซ็นเซอร์
@@ -124,8 +124,8 @@ void readSensors() {
   turbidityVoltage = getStableVoltage(PIN_TURBIDITY);
   
   // ตั้งค่าอ้างอิงของ Hardware จริง (ของ Node02)
-  float vClearUser = 1.83; // โวลต์สูงสุดที่บอร์ดอ่านได้ตอนน้ำใสสุด
-  float vDirtyUser = 0.00;  // โวลต์ตอนน้ำขุ่นสุด (หรือเซ็นเซอร์โดนบัง)
+  float vClearUser = 1.77; // โวลต์สูงสุดที่บอร์ดอ่านได้ตอนน้ำใสสุด
+  float vDirtyUser = 0.20;  // โวลต์ตอนน้ำขุ่นสุด (หรือเซ็นเซอร์โดนบัง)
   
   // ตั้งค่าอ้างอิงตามสมการมาตรฐานของเซ็นเซอร์
   float vClearStd = 4.20;  
