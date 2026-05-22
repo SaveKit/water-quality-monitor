@@ -102,9 +102,9 @@ if __name__ == "__main__":
     export_dynamodb_to_csv(
         table_name="WaterQualityData",
         node_id="Node02",
-        output_filename="node02_new_data_7days.csv",
+        output_filename="node02_experiment2_data_7days.csv",
         # start_time="2026-03-31 00:00:00",  # เวลาเริ่มต้น
         # end_time="2026-04-08 08:00:00",  # เวลาสิ้นสุด
         start_time="2026-05-13 14:45:00",  # เวลาเริ่มต้น
-        end_time="2026-05-13 15:45:00",  # เวลาสิ้นสุด
+        end_time="2026-05-20 12:30:00",  # เวลาสิ้นสุด
     )

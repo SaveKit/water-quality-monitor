@@ -6,8 +6,8 @@
 // ตั้งค่าประจำตัวบอร์ด
 // ==========================================
 #define NODE_NAME "Node02"
-const float CALIBRATION_PH = -5.40;     // ค่าชดเชยสำหรับเซ็นเซอร์ pH
-const float CALIBRATION_K_TDS = 0.8985; // K ที่ได้จากการ Calibrate TDS
+const float CALIBRATION_PH = -5.80;     // ค่าชดเชยสำหรับเซ็นเซอร์ pH
+const float CALIBRATION_K_TDS = 0.7729; // K ที่ได้จากการ Calibrate TDS
 
 // ==========================================
 // กำหนดขา Hardware สำหรับ Arduino UNO
@@ -22,7 +22,7 @@ const int PIN_TEMP = 2;               // ขา Digital 2 สำหรับ DS1
 // ตั้งค่าคงที่สำหรับ MQ-135
 // ==========================================
 const float RL_VALUE = 1.0;           // ค่า R load บนบอร์ด (1k ohm)
-float Ro = 0.700;                      // ค่า Ro ในอากาศสะอาด (ต้อง Calibrate ใหม่ในพื้นที่จริง)
+float Ro = 0.734;                      // ค่า Ro ในอากาศสะอาด (ต้อง Calibrate ใหม่ในพื้นที่จริง)
 
 // ==========================================
 // ตัวแปร Global สำหรับเก็บค่าเซ็นเซอร์
