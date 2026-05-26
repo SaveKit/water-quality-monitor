@@ -14,7 +14,7 @@ secrets.h
 *.private.key
 *.cert.pem
 *.public.key
-*.json
+/*.json
 
 # Arduino
 build/
@@ -28,3 +28,5 @@ build/
 notebooks/
 *.csv
 *.ipynb
+
+AGENTS.md
