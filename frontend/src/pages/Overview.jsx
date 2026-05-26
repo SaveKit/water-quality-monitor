@@ -3,11 +3,102 @@ import Navbar from "../components/Navbar";
 import WQICard from "../components/WQICard";
 import SensorTable from "../components/SensorTable";
 import client from "../api/client";
+import { SENSOR_TYPES } from "../utils/wqi";
 import { RefreshCw, Activity, AlertTriangle, Menu, Droplet } from "lucide-react";
+import { LineChart, Line, ResponsiveContainer, Tooltip } from "recharts";
+
+// Mini Sparkline Trend Chart Component
+function MiniTrendChart({ dataNode01 = [], dataNode02 = [], unit }) {
+  const mergedMap = {};
+
+  dataNode01.forEach((pt) => {
+    const key = new Date(pt.timestamp).getTime();
+    mergedMap[key] = {
+      timestamp: key,
+      formattedTime: new Date(pt.timestamp).toLocaleTimeString("th-TH", {
+        hour: "2-digit",
+        minute: "2-digit",
+      }),
+      Node01: pt.value,
+      Node02: null,
+    };
+  });
+
+  dataNode02.forEach((pt) => {
+    const key = new Date(pt.timestamp).getTime();
+    if (mergedMap[key]) {
+      mergedMap[key].Node02 = pt.value;
+    } else {
+      mergedMap[key] = {
+        timestamp: key,
+        formattedTime: new Date(pt.timestamp).toLocaleTimeString("th-TH", {
+          hour: "2-digit",
+          minute: "2-digit",
+        }),
+        Node01: null,
+        Node02: pt.value,
+      };
+    }
+  });
+
+  const chartData = Object.values(mergedMap).sort((a, b) => a.timestamp - b.timestamp);
+
+  // Downsample to max 30 points to render quickly and smoothly
+  const maxPoints = 30;
+  let finalData = chartData;
+  if (chartData.length > maxPoints) {
+    const step = Math.ceil(chartData.length / maxPoints);
+    finalData = chartData.filter((_, idx) => idx % step === 0);
+  }
+
+  return (
+    <div className="w-full h-12 mt-2">
+      <ResponsiveContainer width="100%" height="100%">
+        <LineChart data={finalData} margin={{ top: 2, right: 2, left: 2, bottom: 2 }}>
+          <Tooltip
+            contentStyle={{
+              background: "rgba(15, 23, 42, 0.95)",
+              borderColor: "rgba(255, 255, 255, 0.08)",
+              borderRadius: "12px",
+              fontSize: "10px",
+              fontFamily: "Sarabun",
+              backdropFilter: "blur(4px)",
+            }}
+            itemStyle={{ color: "#fff", padding: "1px 0" }}
+            labelFormatter={() => "แนวโน้ม"}
+            formatter={(value, name) => [
+              `${Number(value).toFixed(2)} ${unit}`,
+              name === "Node01" ? "จุดที่ 1" : "จุดที่ 2",
+            ]}
+          />
+          <Line
+            type="monotone"
+            dataKey="Node01"
+            stroke="#06b6d4"
+            strokeWidth={1.5}
+            dot={false}
+            activeDot={{ r: 4, strokeWidth: 0, fill: "#22d3ee" }}
+            connectNulls
+          />
+          <Line
+            type="monotone"
+            dataKey="Node02"
+            stroke="#6366f1"
+            strokeWidth={1.5}
+            dot={false}
+            activeDot={{ r: 4, strokeWidth: 0, fill: "#818cf8" }}
+            connectNulls
+          />
+        </LineChart>
+      </ResponsiveContainer>
+    </div>
+  );
+}
 
 export default function Overview() {
   const [realtimeData, setRealtimeData] = useState([]);
   const [wqiData, setWqiData] = useState([]);
+  const [trendsData, setTrendsData] = useState({});
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [refreshing, setRefreshing] = useState(false);
@@ -17,12 +108,52 @@ export default function Overview() {
     if (isManual) setRefreshing(true);
     try {
       setError("");
+      
+      // Calculate 24h ranges for trends
+      const endIso = new Date().toISOString();
+      const startIso = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
+      
       const [realtimeRes, wqiRes] = await Promise.all([
         client.get("/api/data/realtime"),
         client.get("/api/data/wqi"),
       ]);
       setRealtimeData(realtimeRes.data);
       setWqiData(wqiRes.data);
+
+      // Fetch trends for all parameters
+      const paramsList = ["ph", "co2", "tds", "turbidity", "temp"];
+      const nodes = ["Node01", "Node02"];
+      const trendPromises = [];
+      const trendKeys = [];
+
+      paramsList.forEach((param) => {
+        nodes.forEach((node) => {
+          trendPromises.push(
+            client.get("/api/data/historical", {
+              params: {
+                node_id: node,
+                sensor_type: param,
+                start_time: startIso,
+                end_time: endIso,
+              },
+            })
+          );
+          trendKeys.push({ param, node });
+        });
+      });
+
+      const trendResponses = await Promise.all(trendPromises);
+      const newTrends = {};
+
+      trendResponses.forEach((res, index) => {
+        const { param, node } = trendKeys[index];
+        if (!newTrends[param]) {
+          newTrends[param] = { Node01: [], Node02: [] };
+        }
+        newTrends[param][node] = res.data;
+      });
+
+      setTrendsData(newTrends);
     } catch (err) {
       console.error("Error loading dashboard data:", err);
       setError("ไม่สามารถเชื่อมต่อระบบหลังบ้านหรือดึงข้อมูลเซ็นเซอร์ได้");
@@ -35,10 +166,12 @@ export default function Overview() {
   useEffect(() => {
     fetchData();
 
-    // Auto-refresh every 5 minutes (300,000 ms)
+    // Auto-refresh every 1 minute (60,000 ms) as requested
+    console.log("Setting up auto-refresh interval (1 minute)...");
     const interval = setInterval(() => {
+      console.log("Auto-refreshing dashboard and trends data...");
       fetchData();
-    }, 300000);
+    }, 60000);
 
     return () => clearInterval(interval);
   }, []);
@@ -53,7 +186,7 @@ export default function Overview() {
           </div>
           <span className="font-bold text-white text-sm tracking-wider">WQ-MONITOR</span>
         </div>
-        <button 
+        <button
           onClick={() => setIsSidebarOpen(true)}
           className="p-2 text-slate-400 hover:text-white transition-colors duration-200"
         >
@@ -113,6 +246,46 @@ export default function Overview() {
                     />
                   );
                 })}
+              </section>
+
+              {/* Sparkline Trend Graphs Grid */}
+              <section className="space-y-3">
+                <div className="flex items-baseline gap-2">
+                  <h3 className="text-xs font-black text-slate-300 uppercase tracking-wider">
+                    แนวโน้มพารามิเตอร์ล่าสุด (24 ชั่วโมงที่ผ่านมา)
+                  </h3>
+                  <span className="text-[10px] text-slate-500 font-bold">เปรียบเทียบจุดวัด 1 & 2</span>
+                </div>
+                <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4">
+                  {SENSOR_TYPES.map((type) => {
+                    const paramData = trendsData[type.key] || { Node01: [], Node02: [] };
+                    const latestN1 = paramData.Node01?.[paramData.Node01.length - 1]?.value;
+                    const latestN2 = paramData.Node02?.[paramData.Node02.length - 1]?.value;
+
+                    return (
+                      <div
+                        key={type.key}
+                        className="glass-panel border border-slate-800/80 rounded-2xl p-4 flex flex-col justify-between transition-all duration-300 hover:border-slate-700/60"
+                      >
+                        <div>
+                          <div className="flex justify-between items-center text-xs">
+                            <span className="font-bold text-slate-300">{type.label}</span>
+                            <span className="text-[9px] text-slate-500 font-bold uppercase">{type.unit || "unitless"}</span>
+                          </div>
+                          <div className="flex justify-between items-baseline mt-1.5 text-[10px] font-bold">
+                            <span className="text-cyan-400">N1: {latestN1 !== undefined ? latestN1.toFixed(1) : "-"}</span>
+                            <span className="text-indigo-400">N2: {latestN2 !== undefined ? latestN2.toFixed(1) : "-"}</span>
+                          </div>
+                        </div>
+                        <MiniTrendChart
+                          dataNode01={paramData.Node01}
+                          dataNode02={paramData.Node02}
+                          unit={type.unit}
+                        />
+                      </div>
+                    );
+                  })}
+                </div>
               </section>
 
               {/* Detailed Sensor Readings Table */}
