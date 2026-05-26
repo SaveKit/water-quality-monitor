@@ -34,7 +34,9 @@ export default function Analytics() {
   });
 
   const [historicalData, setHistoricalData] = useState({}); // { ph: { Node01: [...], Node02: [...] }, ... }
-  const [rawTableData, setRawTableData] = useState([]); // Computed once on fetch, prevent re-sorting lag
+  const [allTableData, setAllTableData] = useState([]); // Grouped raw data (all records)
+  const [currentPage, setCurrentPage] = useState(1);
+  const pageSize = 50;
   const [hasSearched, setHasSearched] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
@@ -127,7 +129,8 @@ export default function Analytics() {
       // Convert map to sorted array (descending by timestamp)
       const groupedRows = Object.values(rowsMap).sort((a, b) => b.timestamp - a.timestamp);
       
-      setRawTableData(groupedRows.slice(0, 100));
+      setAllTableData(groupedRows);
+      setCurrentPage(1);
       setHistoricalData(newHistoricalData);
       
       // Freeze inputs for display
@@ -143,6 +146,43 @@ export default function Analytics() {
     } finally {
       setLoading(false);
     }
+  };
+
+  const exportAllToCSV = () => {
+    if (allTableData.length === 0) {
+      alert("ไม่มีข้อมูลที่จะส่งออก");
+      return;
+    }
+
+    // CSV Headers
+    const headers = ["node_id", "timestamp", "ph", "tds", "turbidity", "temperature", "co2"];
+    
+    // Convert rows to CSV format
+    const csvRows = [
+      headers.join(","), // header row
+      ...allTableData.map(row => {
+        const rowData = [
+          row.node_id,
+          row.timestampStr,
+          row.ph !== null && row.ph !== undefined ? row.ph : "",
+          row.tds !== null && row.tds !== undefined ? row.tds : "",
+          row.turbidity !== null && row.turbidity !== undefined ? row.turbidity : "",
+          row.temp !== null && row.temp !== undefined ? row.temp : "",
+          row.co2 !== null && row.co2 !== undefined ? row.co2 : ""
+        ];
+        return rowData.join(",");
+      })
+    ];
+
+    const csvContent = "\uFEFF" + csvRows.join("\n");
+    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.setAttribute("href", url);
+    link.setAttribute("download", `water_quality_raw_table_export.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
   };
 
   const handleExportCSV = async (node, param) => {
@@ -172,6 +212,45 @@ export default function Analytics() {
       alert("ไม่สามารถดาวน์โหลดไฟล์ CSV ได้");
     }
   };
+
+  const totalPages = Math.ceil(allTableData.length / pageSize);
+
+  const getPageNumbers = () => {
+    const pages = [];
+    if (totalPages <= 5) {
+      for (let i = 1; i <= totalPages; i++) {
+        pages.push(i);
+      }
+    } else {
+      pages.push(1);
+      
+      let start = Math.max(2, currentPage - 1);
+      let end = Math.min(totalPages - 1, currentPage + 1);
+      
+      if (currentPage <= 2) {
+        end = 4;
+      } else if (currentPage >= totalPages - 1) {
+        start = totalPages - 3;
+      }
+      
+      if (start > 2) {
+        pages.push("...");
+      }
+      
+      for (let i = start; i <= end; i++) {
+        pages.push(i);
+      }
+      
+      if (end < totalPages - 1) {
+        pages.push("...");
+      }
+      
+      pages.push(totalPages);
+    }
+    return pages;
+  };
+
+  const paginatedData = allTableData.slice((currentPage - 1) * pageSize, currentPage * pageSize);
 
   return (
     <div className="min-h-screen bg-[#070913] flex flex-col md:flex-row">
@@ -363,9 +442,18 @@ export default function Analytics() {
 
               {/* Raw Data Table List Section */}
               <section className="rounded-2xl glass-panel border border-slate-800/80 overflow-hidden">
-                <div className="px-6 py-4 border-b border-slate-800/60">
-                  <h3 className="text-base font-bold text-white">ตารางบันทึกค่าดิบย้อนหลัง (100 แถวแรก)</h3>
-                  <p className="text-xs text-slate-400 mt-0.5">รายการพิกัดตัวเลขอ้างอิงจริงที่ดึงออกมาจากฐานข้อมูล DynamoDB</p>
+                <div className="px-6 py-4 border-b border-slate-800/60 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+                  <div>
+                    <h3 className="text-base font-bold text-white">ตารางบันทึกค่าดิบย้อนหลัง (50 แถวต่อหน้า)</h3>
+                    <p className="text-xs text-slate-400 mt-0.5">รายการพิกัดตัวเลขอ้างอิงจริงที่ดึงออกมาจากฐานข้อมูล DynamoDB</p>
+                  </div>
+                  <button
+                    onClick={exportAllToCSV}
+                    className="flex items-center gap-1.5 bg-gradient-to-r from-blue-500 to-cyan-500 hover:from-blue-600 hover:to-cyan-600 text-white font-bold rounded-xl px-4 py-2.5 text-xs transition-all duration-300 w-full sm:w-auto justify-center cursor-pointer"
+                  >
+                    <Download className="w-4 h-4" />
+                    <span>Export CSV (ทั้งหมด)</span>
+                  </button>
                 </div>
                 <div className="overflow-x-auto">
                   <table className="w-full text-left border-collapse">
@@ -381,7 +469,7 @@ export default function Analytics() {
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-800/30 text-xs font-semibold">
-                      {rawTableData.map((row, index) => {
+                      {paginatedData.map((row, index) => {
                         const formattedTime = new Date(row.timestampStr).toLocaleString("th-TH", {
                           timeZone: "Asia/Bangkok",
                           month: "short",
@@ -415,7 +503,7 @@ export default function Analytics() {
                           </tr>
                         );
                       })}
-                      {rawTableData.length === 0 && (
+                      {allTableData.length === 0 && (
                         <tr>
                           <td colSpan="7" className="py-8 px-6 text-center text-slate-500 font-bold">
                             ไม่พบข้อมูลในช่วงเวลาและสถานีที่ระบุ
@@ -425,6 +513,56 @@ export default function Analytics() {
                     </tbody>
                   </table>
                 </div>
+
+                {/* Pagination Controls */}
+                {allTableData.length > 0 && (
+                  <div className="px-6 py-4 border-t border-slate-800/60 flex items-center justify-center sm:justify-between gap-4 flex-wrap bg-slate-950/20">
+                    <span className="text-xs text-slate-400 font-semibold">
+                      แสดง {(currentPage - 1) * pageSize + 1} - {Math.min(currentPage * pageSize, allTableData.length)} จากทั้งหมด {allTableData.length} รายการ
+                    </span>
+                    <div className="flex items-center gap-1.5 text-xs font-bold font-sans">
+                      <button
+                        onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+                        disabled={currentPage === 1}
+                        className="px-3 py-2 rounded-lg border border-slate-800 bg-slate-900/40 text-slate-400 hover:bg-slate-800 hover:text-white transition-all duration-300 disabled:opacity-30 disabled:hover:bg-slate-900/40 disabled:hover:text-slate-400 cursor-pointer"
+                      >
+                        ก่อนหน้า
+                      </button>
+                      
+                      {getPageNumbers().map((page, idx) => {
+                        if (page === "...") {
+                          return (
+                            <span key={`dots-${idx}`} className="px-2 text-slate-500 font-semibold">
+                              ...
+                            </span>
+                          );
+                        }
+                        
+                        return (
+                          <button
+                            key={page}
+                            onClick={() => setCurrentPage(page)}
+                            className={`w-9 h-9 rounded-lg border text-center transition-all duration-300 cursor-pointer ${
+                              currentPage === page
+                                ? "bg-blue-600 border-blue-600 text-white"
+                                : "border-slate-800 bg-slate-900/40 text-slate-400 hover:bg-slate-800 hover:text-white"
+                            }`}
+                          >
+                            {page}
+                          </button>
+                        );
+                      })}
+                      
+                      <button
+                        onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
+                        disabled={currentPage === totalPages}
+                        className="px-3 py-2 rounded-lg border border-slate-800 bg-slate-900/40 text-slate-400 hover:bg-slate-800 hover:text-white transition-all duration-300 disabled:opacity-30 disabled:hover:bg-slate-900/40 disabled:hover:text-slate-400 cursor-pointer"
+                      >
+                        ถัดไป
+                      </button>
+                    </div>
+                  </div>
+                )}
               </section>
             </div>
           )}
