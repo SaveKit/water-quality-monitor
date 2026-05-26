@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState } from "react";
 import Navbar from "../components/Navbar";
 import TimeSeriesChart from "../components/TimeSeriesChart";
 import client from "../api/client";
@@ -21,7 +21,21 @@ export default function Analytics() {
     temp: true,
   });
 
+  // Applied states (frozen at the moment of click)
+  const [appliedStartDate, setAppliedStartDate] = useState(defaultStartDate);
+  const [appliedEndDate, setAppliedEndDate] = useState(defaultEndDate);
+  const [appliedNodes, setAppliedNodes] = useState({ Node01: true, Node02: true });
+  const [appliedParams, setAppliedParams] = useState({
+    ph: true,
+    co2: false,
+    tds: true,
+    turbidity: false,
+    temp: true,
+  });
+
   const [historicalData, setHistoricalData] = useState({}); // { ph: { Node01: [...], Node02: [...] }, ... }
+  const [rawTableData, setRawTableData] = useState([]); // Computed once on fetch, prevent re-sorting lag
+  const [hasSearched, setHasSearched] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
@@ -86,7 +100,37 @@ export default function Analytics() {
         newHistoricalData[param][node] = res.data;
       });
 
+      // Calculate combined raw data points ONCE here and save in state
+      const combined = [];
+      Object.keys(newHistoricalData).forEach((param) => {
+        const nodes = newHistoricalData[param];
+        Object.keys(nodes).forEach((node) => {
+          nodes[node].forEach((pt) => {
+            combined.push({
+              timestamp: new Date(pt.timestamp).getTime(),
+              timestampStr: pt.timestamp,
+              node_id: node,
+              sensor_type: param,
+              value: pt.value,
+              unit: pt.unit,
+            });
+          });
+        });
+      });
+      
+      // Sort and slice to top 100 once
+      combined.sort((a, b) => b.timestamp - a.timestamp);
+      
+      setRawTableData(combined.slice(0, 100));
       setHistoricalData(newHistoricalData);
+      
+      // Freeze inputs for display
+      setAppliedStartDate(startDate);
+      setAppliedEndDate(endDate);
+      setAppliedNodes({ ...selectedNodes });
+      setAppliedParams({ ...selectedParams });
+      
+      setHasSearched(true);
     } catch (err) {
       console.error("Error loading historical analytics:", err);
       setError("เกิดข้อผิดพลาดในการดึงข้อมูลประวัติย้อนหลัง");
@@ -95,14 +139,10 @@ export default function Analytics() {
     }
   };
 
-  useEffect(() => {
-    fetchHistoricalData();
-  }, []);
-
   const handleExportCSV = async (node, param) => {
     try {
-      const startIso = new Date(startDate).toISOString();
-      const endIso = new Date(endDate).toISOString();
+      const startIso = new Date(appliedStartDate).toISOString();
+      const endIso = new Date(appliedEndDate).toISOString();
       
       const response = await client.get("/api/data/export/csv", {
         params: {
@@ -126,28 +166,6 @@ export default function Analytics() {
       alert("ไม่สามารถดาวน์โหลดไฟล์ CSV ได้");
     }
   };
-
-  const getCombinedRawData = () => {
-    const combined = [];
-    Object.keys(historicalData).forEach((param) => {
-      const nodes = historicalData[param];
-      Object.keys(nodes).forEach((node) => {
-        nodes[node].forEach((pt) => {
-          combined.push({
-            timestamp: new Date(pt.timestamp).getTime(),
-            timestampStr: pt.timestamp,
-            node_id: node,
-            sensor_type: param,
-            value: pt.value,
-            unit: pt.unit,
-          });
-        });
-      });
-    });
-    return combined.sort((a, b) => b.timestamp - a.timestamp).slice(0, 100);
-  };
-
-  const rawTableData = getCombinedRawData();
 
   return (
     <div className="min-h-screen bg-[#070913] flex flex-col md:flex-row">
@@ -189,29 +207,35 @@ export default function Analytics() {
             </h3>
 
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-              {/* Start and End date time pickers */}
+              {/* Start and End date time pickers (Calendar and Time Range selector) */}
               <div className="space-y-3">
                 <label className="text-xs text-slate-400 font-bold uppercase tracking-wider flex items-center gap-1.5">
                   <Calendar className="w-3.5 h-3.5 text-slate-400" />
-                  ช่วงเวลาตรวจวัด (เริ่มต้น - สิ้นสุด)
+                  ช่วงเวลาตรวจวัด (เลือกปฏิทินและเวลา)
                 </label>
-                <div className="space-y-2">
-                  <input
-                    type="datetime-local"
-                    value={startDate}
-                    onChange={(e) => setStartDate(e.target.value)}
-                    className="w-full bg-[#0a0d18] border border-slate-800 focus:border-cyan-500 rounded-xl px-3 py-2 text-xs font-semibold text-white outline-none"
-                  />
-                  <input
-                    type="datetime-local"
-                    value={endDate}
-                    onChange={(e) => setEndDate(e.target.value)}
-                    className="w-full bg-[#0a0d18] border border-slate-800 focus:border-cyan-500 rounded-xl px-3 py-2 text-xs font-semibold text-white outline-none"
-                  />
+                <div className="flex flex-col sm:flex-row gap-3">
+                  <div className="flex-1 space-y-1">
+                    <span className="text-[10px] text-slate-500 font-bold">เริ่มต้น</span>
+                    <input
+                      type="datetime-local"
+                      value={startDate}
+                      onChange={(e) => setStartDate(e.target.value)}
+                      className="w-full bg-[#0a0d18] border border-slate-800 focus:border-cyan-500 rounded-xl px-3 py-2 text-xs font-semibold text-white outline-none"
+                    />
+                  </div>
+                  <div className="flex-1 space-y-1">
+                    <span className="text-[10px] text-slate-500 font-bold">สิ้นสุด</span>
+                    <input
+                      type="datetime-local"
+                      value={endDate}
+                      onChange={(e) => setEndDate(e.target.value)}
+                      className="w-full bg-[#0a0d18] border border-slate-800 focus:border-cyan-500 rounded-xl px-3 py-2 text-xs font-semibold text-white outline-none"
+                    />
+                  </div>
                 </div>
               </div>
 
-              {/* Checkbox Node Picker */}
+              {/* Checkbox Node Picker (No direction suffix) */}
               <div className="space-y-3">
                 <label className="text-xs text-slate-400 font-bold uppercase tracking-wider">
                   สถานีจุดตรวจวัด
@@ -227,7 +251,7 @@ export default function Analytics() {
                           : "bg-slate-900/40 text-slate-500 border-slate-800"
                       }`}
                     >
-                      <span>{node === "Node01" ? "จุดตรวจวัดที่ 1 (เหนือ)" : "จุดตรวจวัดที่ 2 (ใต้)"}</span>
+                      <span>{node === "Node01" ? "จุดตรวจวัดที่ 1" : "จุดตรวจวัดที่ 2"}</span>
                       {selectedNodes[node] && <Check className="w-4 h-4" />}
                     </button>
                   ))}
@@ -282,14 +306,19 @@ export default function Analytics() {
               <Database className="w-10 h-10 text-cyan-500 animate-pulse" />
               <p className="text-sm text-slate-400 font-bold">กำลังดึงฐานข้อมูลเซ็นเซอร์ย้อนหลัง...</p>
             </div>
+          ) : !hasSearched ? (
+            <div className="flex flex-col items-center justify-center h-[35vh] gap-3 glass-panel border border-slate-800/80 rounded-3xl p-6">
+              <Database className="w-8 h-8 text-slate-500" />
+              <p className="text-sm text-slate-400 font-bold">กรุณาตั้งค่าช่วงเวลา พารามิเตอร์ และจุดวัด แล้วกดปุ่ม "เริ่มค้นหาและเปรียบเทียบ"</p>
+            </div>
           ) : (
             <div className="space-y-8">
               {/* Time Series Charts section */}
               <section className="space-y-6">
-                {Object.keys(historicalData).map((param) => {
+                {Object.keys(appliedParams).filter((p) => appliedParams[p]).map((param) => {
                   const typeObj = SENSOR_TYPES.find((t) => t.key === param);
-                  const nodesData = historicalData[param];
-                  const activeNodes = Object.keys(selectedNodes).filter((n) => selectedNodes[n]);
+                  const nodesData = historicalData[param] || { Node01: [], Node02: [] };
+                  const activeNodes = Object.keys(appliedNodes).filter((n) => appliedNodes[n]);
 
                   return (
                     <div key={param} className="glass-panel border border-slate-800/80 rounded-3xl p-6">
@@ -308,7 +337,7 @@ export default function Analytics() {
                               className="flex items-center gap-1.5 bg-slate-800/50 hover:bg-slate-800 text-slate-300 border border-slate-700/50 rounded-xl px-3 py-1.5 text-[10px] font-bold transition-all duration-300 w-full sm:w-auto justify-center"
                             >
                               <Download className="w-3.5 h-3.5" />
-                              <span>Export CSV ({node})</span>
+                              <span>Export CSV ({node === "Node01" ? "จุดตรวจวัดที่ 1" : "จุดตรวจวัดที่ 2"})</span>
                             </button>
                           ))}
                         </div>
@@ -317,6 +346,7 @@ export default function Analytics() {
                       <TimeSeriesChart
                         dataNode01={nodesData.Node01}
                         dataNode02={nodesData.Node02}
+                        activeNodes={appliedNodes}
                         parameterLabel={typeObj?.label}
                         unit={typeObj?.unit}
                       />
@@ -329,7 +359,7 @@ export default function Analytics() {
               <section className="rounded-2xl glass-panel border border-slate-800/80 overflow-hidden">
                 <div className="px-6 py-4 border-b border-slate-800/60">
                   <h3 className="text-base font-bold text-white">ตารางบันทึกค่าดิบย้อนหลัง (100 แถวแรก)</h3>
-                  <p className="text-xs text-slate-400 mt-0.5">รายการพิกัดตัวเลอะอ้างอิงจริงที่ดึงออกมาจากฐานข้อมูล DynamoDB</p>
+                  <p className="text-xs text-slate-400 mt-0.5">รายการพิกัดตัวเลขอ้างอิงจริงที่ดึงออกมาจากฐานข้อมูล DynamoDB</p>
                 </div>
                 <div className="overflow-x-auto">
                   <table className="w-full text-left border-collapse">
@@ -356,7 +386,9 @@ export default function Analytics() {
                         return (
                           <tr key={index} className="hover:bg-slate-800/10 transition-colors duration-200">
                             <td className="py-3 px-6 text-slate-400">{formattedTime}</td>
-                            <td className="py-3 px-6 text-white">{row.node_id}</td>
+                            <td className="py-3 px-6 text-white">
+                              {row.node_id === "Node01" ? "จุดตรวจวัดที่ 1" : "จุดตรวจวัดที่ 2"}
+                            </td>
                             <td className="py-3 px-6 text-slate-300">{typeObj?.label || row.sensor_type}</td>
                             <td className="py-3 px-6 text-right text-cyan-400 font-bold">
                               {row.value.toFixed(2)} {row.unit}

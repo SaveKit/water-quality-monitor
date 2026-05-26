@@ -10,54 +10,60 @@ import {
   Legend
 } from "recharts";
 
-export default function TimeSeriesChart({ dataNode01, dataNode02, parameterLabel, unit }) {
-  // Merge historical data of both nodes by timestamp
-  const mergedDataMap = {};
+export default function TimeSeriesChart({ dataNode01 = [], dataNode02 = [], activeNodes = { Node01: true, Node02: true }, parameterLabel, unit }) {
+  // Merge historical data of both nodes by timestamp using useMemo
+  const chartData = React.useMemo(() => {
+    const mergedDataMap = {};
 
-  dataNode01.forEach((pt) => {
-    const timeStr = new Date(pt.timestamp).toLocaleTimeString("th-TH", {
-      hour: "2-digit",
-      minute: "2-digit"
-    });
-    const dateStr = new Date(pt.timestamp).toLocaleDateString("th-TH", {
-      day: "2-digit",
-      month: "short"
-    });
-    const key = new Date(pt.timestamp).getTime();
-    
-    mergedDataMap[key] = {
-      timestamp: key,
-      formattedTime: `${dateStr} ${timeStr}`,
-      Node01: pt.value,
-      Node02: null
-    };
-  });
-
-  dataNode02.forEach((pt) => {
-    const timeStr = new Date(pt.timestamp).toLocaleTimeString("th-TH", {
-      hour: "2-digit",
-      minute: "2-digit"
-    });
-    const dateStr = new Date(pt.timestamp).toLocaleDateString("th-TH", {
-      day: "2-digit",
-      month: "short"
-    });
-    const key = new Date(pt.timestamp).getTime();
-
-    if (mergedDataMap[key]) {
-      mergedDataMap[key].Node02 = pt.value;
-    } else {
-      mergedDataMap[key] = {
-        timestamp: key,
-        formattedTime: `${dateStr} ${timeStr}`,
-        Node01: null,
-        Node02: pt.value
-      };
+    if (activeNodes.Node01 && dataNode01) {
+      dataNode01.forEach((pt) => {
+        const timeStr = new Date(pt.timestamp).toLocaleTimeString("th-TH", {
+          hour: "2-digit",
+          minute: "2-digit"
+        });
+        const dateStr = new Date(pt.timestamp).toLocaleDateString("th-TH", {
+          day: "2-digit",
+          month: "short"
+        });
+        const key = new Date(pt.timestamp).getTime();
+        
+        mergedDataMap[key] = {
+          timestamp: key,
+          formattedTime: `${dateStr} ${timeStr}`,
+          Node01: pt.value,
+          Node02: null
+        };
+      });
     }
-  });
 
-  // Convert map to sorted array
-  const chartData = Object.values(mergedDataMap).sort((a, b) => a.timestamp - b.timestamp);
+    if (activeNodes.Node02 && dataNode02) {
+      dataNode02.forEach((pt) => {
+        const timeStr = new Date(pt.timestamp).toLocaleTimeString("th-TH", {
+          hour: "2-digit",
+          minute: "2-digit"
+        });
+        const dateStr = new Date(pt.timestamp).toLocaleDateString("th-TH", {
+          day: "2-digit",
+          month: "short"
+        });
+        const key = new Date(pt.timestamp).getTime();
+
+        if (mergedDataMap[key]) {
+          mergedDataMap[key].Node02 = pt.value;
+        } else {
+          mergedDataMap[key] = {
+            timestamp: key,
+            formattedTime: `${dateStr} ${timeStr}`,
+            Node01: null,
+            Node02: pt.value
+          };
+        }
+      });
+    }
+
+    // Convert map to sorted array
+    return Object.values(mergedDataMap).sort((a, b) => a.timestamp - b.timestamp);
+  }, [dataNode01, dataNode02, activeNodes]);
 
   // Custom Glassmorphic Tooltip
   const CustomTooltip = ({ active, payload }) => {
@@ -117,7 +123,7 @@ export default function TimeSeriesChart({ dataNode01, dataNode02, parameterLabel
               fontWeight: "600",
               color: "#94a3b8"
             }}
-            formatter={(value) => (value === "Node01" ? "จุดตรวจวัดที่ 1 (สจล.)" : "จุดตรวจวัดที่ 2 (สจล.)")}
+            formatter={(value) => (value === "Node01" ? "จุดตรวจวัดที่ 1" : "จุดตรวจวัดที่ 2")}
           />
           
           {/* Node 1 Line (Cyan gradient-style) */}
