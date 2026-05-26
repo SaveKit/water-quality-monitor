@@ -3,3 +3,7 @@ uvicorn
 boto3
 pydantic
 python-multipart
+python-jose[cryptography]
+python-dotenv
+pandas
+requests
