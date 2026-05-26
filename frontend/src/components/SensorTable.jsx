@@ -29,7 +29,7 @@ export default function SensorTable({ realtimeData, wqiData }) {
         </div>
         <div className="flex items-center gap-1 text-[10px] text-slate-500 font-semibold bg-slate-800/20 px-2 py-1 rounded-lg">
           <Info className="w-3.5 h-3.5" />
-          <span>อัปเดตอัตโนมัติทุก 5 นาที</span>
+          <span>อัปเดตอัตโนมัติทุก 1 นาที</span>
         </div>
       </div>
 
@@ -52,7 +52,7 @@ export default function SensorTable({ realtimeData, wqiData }) {
             {rows.map((row) => {
               const status = getWQIStatus(row.wqi || 0);
               const cfg = WQI_CONFIG[status];
-              const nodeName = row.node_id === "Node01" ? "จุดตรวจวัดที่ 1 (สจล.)" : "จุดตรวจวัดที่ 2 (สจล.)";
+              const nodeName = row.node_id === "Node01" ? "จุดตรวจวัดที่ 1" : "จุดตรวจวัดที่ 2";
 
               return (
                 <tr key={row.node_id} className="hover:bg-slate-800/10 transition-colors duration-200">

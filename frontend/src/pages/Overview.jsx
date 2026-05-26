@@ -68,7 +68,7 @@ function MiniTrendChart({ dataNode01 = [], dataNode02 = [], unit }) {
             labelFormatter={() => "แนวโน้ม"}
             formatter={(value, name) => [
               `${Number(value).toFixed(2)} ${unit}`,
-              name === "Node01" ? "จุดที่ 1" : "จุดที่ 2",
+              name === "Node01" ? "จุดตรวจวัดที่ 1" : "จุดตรวจวัดที่ 2",
             ]}
           />
           <Line
@@ -234,7 +234,7 @@ export default function Overview() {
               {/* WQI Cards Grid (2 Nodes) */}
               <section className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                 {wqiData.map((nodeWqi) => {
-                  const nodeName = nodeWqi.node_id === "Node01" ? "จุดตรวจวัดที่ 1 (ทิศเหนือ)" : "จุดตรวจวัดที่ 2 (ทิศใต้)";
+                  const nodeName = nodeWqi.node_id === "Node01" ? "จุดตรวจวัดที่ 1" : "จุดตรวจวัดที่ 2";
                   return (
                     <WQICard
                       key={nodeWqi.node_id}

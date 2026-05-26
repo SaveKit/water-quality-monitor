@@ -84,7 +84,7 @@ export default function Forecast() {
               {/* Forecast Cards Grid (2 Nodes) */}
               <section className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                 {forecastData.map((nodeForecast) => {
-                  const nodeName = nodeForecast.node_id === "Node01" ? "จุดตรวจวัดที่ 1 (คาดการณ์)" : "จุดตรวจวัดที่ 2 (คาดการณ์)";
+                  const nodeName = nodeForecast.node_id === "Node01" ? "จุดตรวจวัดที่ 1" : "จุดตรวจวัดที่ 2";
                   return (
                     <WQICard
                       key={nodeForecast.node_id}
