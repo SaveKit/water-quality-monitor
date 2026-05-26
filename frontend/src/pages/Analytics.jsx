@@ -100,28 +100,34 @@ export default function Analytics() {
         newHistoricalData[param][node] = res.data;
       });
 
-      // Calculate combined raw data points ONCE here and save in state
-      const combined = [];
+      // Group by timestamp and node_id to display parameters side-by-side
+      const rowsMap = {};
       Object.keys(newHistoricalData).forEach((param) => {
         const nodes = newHistoricalData[param];
         Object.keys(nodes).forEach((node) => {
           nodes[node].forEach((pt) => {
-            combined.push({
-              timestamp: new Date(pt.timestamp).getTime(),
-              timestampStr: pt.timestamp,
-              node_id: node,
-              sensor_type: param,
-              value: pt.value,
-              unit: pt.unit,
-            });
+            const key = `${pt.timestamp}_${node}`;
+            if (!rowsMap[key]) {
+              rowsMap[key] = {
+                timestampStr: pt.timestamp,
+                timestamp: new Date(pt.timestamp).getTime(),
+                node_id: node,
+                ph: null,
+                co2: null,
+                tds: null,
+                turbidity: null,
+                temp: null,
+              };
+            }
+            rowsMap[key][param] = pt.value;
           });
         });
       });
       
-      // Sort and slice to top 100 once
-      combined.sort((a, b) => b.timestamp - a.timestamp);
+      // Convert map to sorted array (descending by timestamp)
+      const groupedRows = Object.values(rowsMap).sort((a, b) => b.timestamp - a.timestamp);
       
-      setRawTableData(combined.slice(0, 100));
+      setRawTableData(groupedRows.slice(0, 100));
       setHistoricalData(newHistoricalData);
       
       // Freeze inputs for display
@@ -365,15 +371,17 @@ export default function Analytics() {
                   <table className="w-full text-left border-collapse">
                     <thead>
                       <tr className="border-b border-slate-800/40 text-xs text-slate-400 font-bold uppercase bg-slate-900/20">
-                        <th className="py-3 px-6">วัน-เวลา</th>
-                        <th className="py-3 px-6">จุดตรวจวัด</th>
-                        <th className="py-3 px-6">ตัวแปร</th>
-                        <th className="py-3 px-6 text-right">ค่าที่บันทึกได้</th>
+                        <th className="py-4 px-6">วัน-เวลา</th>
+                        <th className="py-4 px-6">จุดตรวจวัด</th>
+                        <th className="py-4 px-3 text-center">pH</th>
+                        <th className="py-4 px-3 text-center">CO₂ (ppm)</th>
+                        <th className="py-4 px-3 text-center">TDS (ppm)</th>
+                        <th className="py-4 px-3 text-center">Turbidity (NTU)</th>
+                        <th className="py-4 px-3 text-center">อุณหภูมิ (°C)</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-800/30 text-xs font-semibold">
                       {rawTableData.map((row, index) => {
-                        const typeObj = SENSOR_TYPES.find((t) => t.key === row.sensor_type);
                         const formattedTime = new Date(row.timestampStr).toLocaleString("th-TH", {
                           timeZone: "Asia/Bangkok",
                           month: "short",
@@ -385,20 +393,31 @@ export default function Analytics() {
 
                         return (
                           <tr key={index} className="hover:bg-slate-800/10 transition-colors duration-200">
-                            <td className="py-3 px-6 text-slate-400">{formattedTime}</td>
-                            <td className="py-3 px-6 text-white">
+                            <td className="py-4 px-6 text-slate-400">{formattedTime}</td>
+                            <td className="py-4 px-6 text-white font-bold">
                               {row.node_id === "Node01" ? "จุดตรวจวัดที่ 1" : "จุดตรวจวัดที่ 2"}
                             </td>
-                            <td className="py-3 px-6 text-slate-300">{typeObj?.label || row.sensor_type}</td>
-                            <td className="py-3 px-6 text-right text-cyan-400 font-bold">
-                              {row.value.toFixed(2)} {row.unit}
+                            <td className="py-4 px-3 text-center text-slate-200">
+                              {row.ph !== null && row.ph !== undefined ? row.ph.toFixed(2) : "-"}
+                            </td>
+                            <td className="py-4 px-3 text-center text-slate-200">
+                              {row.co2 !== null && row.co2 !== undefined ? row.co2.toFixed(1) : "-"}
+                            </td>
+                            <td className="py-4 px-3 text-center text-slate-200">
+                              {row.tds !== null && row.tds !== undefined ? row.tds.toFixed(1) : "-"}
+                            </td>
+                            <td className="py-4 px-3 text-center text-slate-200">
+                              {row.turbidity !== null && row.turbidity !== undefined ? row.turbidity.toFixed(2) : "-"}
+                            </td>
+                            <td className="py-4 px-3 text-center text-slate-200">
+                              {row.temp !== null && row.temp !== undefined ? row.temp.toFixed(1) : "-"}
                             </td>
                           </tr>
                         );
                       })}
                       {rawTableData.length === 0 && (
                         <tr>
-                          <td colSpan="4" className="py-8 px-6 text-center text-slate-500 font-bold">
+                          <td colSpan="7" className="py-8 px-6 text-center text-slate-500 font-bold">
                             ไม่พบข้อมูลในช่วงเวลาและสถานีที่ระบุ
                           </td>
                         </tr>
