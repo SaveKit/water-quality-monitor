@@ -7,26 +7,48 @@ __pycache__/
 *.pyc
 venv/
 .pytest_cache/
+.ipynb_checkpoints/
 
 # Environment Variables & Secrets
 .env
+.env.*
 secrets.h
 *.private.key
 *.cert.pem
 *.public.key
 /*.json
 
-# Arduino
+# Machine Learning Artifacts & Outputs
+ml_pipeline/models/*.keras
+ml_pipeline/models/*.pkl
+training_results.png
+*.png
+
+# Frontend (Vite/React)
+frontend/node_modules/
+frontend/dist/
+frontend/.eslintcache
+.npm/
+
+# Arduino & Microcontroller
 build/
 *.elf
 *.bin
 
+# Editors & IDEs
+.vscode/
+.idea/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.swp
+
 # OS
 .DS_Store
+Thumbs.db
 
-# data
+# Data & Notebooks
 notebooks/
 *.csv
 *.ipynb
-
-AGENTS.md

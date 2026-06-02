@@ -1,0 +1,12 @@
+{
+    "Y": 369.11556162987756,
+    "features": [
+        "co2",
+        "ph",
+        "tds",
+        "turbidity"
+    ],
+    "target": "co2",
+    "time_step": 7,
+    "fog_day0": 2250.667
+}
