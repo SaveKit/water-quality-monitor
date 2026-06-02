@@ -25,9 +25,12 @@ ml_pipeline/
 │   ├── features.py             # การคำนวณ Cumulative CO2, Yield Y, และ FDEI
 │   ├── model.py                # นิยามโครงสร้างชั้น CNN-GRU ของโมเดล Keras
 │   ├── train.py                # สคริปต์หลักในการเทรนโมเดลแบบ Local
-│   └── inference.py            # ตรรกะการทำนายผลล่วงหน้าแบบ Recursive
+│   ├── inference.py            # ตรรกะการทำนายผลล่วงหน้าแบบ Recursive
+│   ├── data_pipeline.py        # Facade สำหรับเชื่อมโยงการทำงานด้าน Preprocess/Features (Backward Compatible)
+│   └── fog_cnn_gru_svr_pipeline.py # Facade สำหรับเชื่อมโยงการทำงานด้าน Model/Train (Backward Compatible)
 ├── requirements.txt            # dependencies สำหรับพัฒนาบนเครื่องเครื่อง Local
 └── README.md                   # คู่มือแนะนำฉบับนี้
+
 ```
 
 ---
