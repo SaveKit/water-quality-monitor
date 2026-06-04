@@ -21,6 +21,7 @@ secrets.h
 # Machine Learning Artifacts & Outputs
 ml_pipeline/models/*.keras
 ml_pipeline/models/*.pkl
+ml_pipeline/models_backup_1run/
 training_results.png
 *.png
 
