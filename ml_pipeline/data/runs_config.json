@@ -1,0 +1,52 @@
+{
+    "runs": [
+        {
+            "run_id": "run1",
+            "csv_file": "node01_new_data_7days.csv",
+            "fog_day0": 2250.667,
+            "fog_day7": 166.667,
+            "fog_lab_checkpoints": {
+                "3": 1121.333
+            },
+            "control_csv_file": "node02_new_data_7days.csv",
+            "control_fog": {
+                "day0": 6209.333,
+                "day3": 2185.333,
+                "day7": 8622.667
+            },
+            "description": "Experiment 1 — รอบแรก (เม.ย. 2026)"
+        },
+        {
+            "run_id": "run2",
+            "csv_file": "node01_experiment2_data_7days.csv",
+            "fog_day0": 2892.0,
+            "fog_day7": 989.333,
+            "fog_lab_checkpoints": {
+                "3": 2077.333
+            },
+            "control_csv_file": "node02_experiment2_data_7days.csv",
+            "control_fog": {
+                "day0": 2965.333,
+                "day3": 2916.0,
+                "day7": 1938.667
+            },
+            "description": "Experiment 2 — รอบที่ 2 (พ.ค. 2026)"
+        },
+        {
+            "run_id": "run3",
+            "csv_file": "node01_experiment3_data_7days.csv",
+            "fog_day0": 2892.0,
+            "fog_day7": 993.333,
+            "fog_lab_checkpoints": {
+                "3": 1922.667
+            },
+            "control_csv_file": "node02_experiment3_data_7days.csv",
+            "control_fog": {
+                "day0": 2960.0,
+                "day3": 2878.667,
+                "day7": 2234.667
+            },
+            "description": "Experiment 3 — รอบที่ 3 (พ.ค. 2026)"
+        }
+    ]
+}

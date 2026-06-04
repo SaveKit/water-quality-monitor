@@ -36,8 +36,6 @@ CONFIG = {
     'RESAMPLE'       : '5min',     # หรือ None หากต้องการใช้ 30s ดิบ
     'TRAIN_RATIO'    : 0.70,
     'VAL_RATIO'      : 0.15,
-    'FOG_DAY0'       : 2250.667,   # FOG mg/L จากห้องแล็บเริ่มต้น
-    'FOG_DAY7'       : 166.667,    # FOG mg/L จากห้องแล็บวันที่ 7
 }
 
 FEATURES = ['co2', 'ph', 'tds', 'turbidity']
@@ -132,76 +130,97 @@ def plot_results(y_true, y_pred, history):
     print(f"[Plot] บันทึกกราฟสรุปผลการเทรน → {output_plot}")
 
 if __name__ == '__main__':
-    # ── รัน Pipeline หลักสำหรับเทรนโมเดล ──
-    base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-    DATA_PATH = os.path.join(base_dir, 'data', 'node01_new_data_7days.csv')
-    
-    if not os.path.exists(DATA_PATH):
-        print(f"ไม่พบไฟล์ข้อมูลดิบที่: {DATA_PATH} กำลังตรวจหาในโฟลเดอร์หลัก...")
-        DATA_PATH = 'node01_new_data_7days.csv'
+    # ══════════════════════════════════════════════════════════
+    # Multi-Run Training Pipeline
+    # ══════════════════════════════════════════════════════════
+    base_dir  = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    data_dir  = os.path.join(base_dir, 'data')
+    config_path = os.path.join(data_dir, 'runs_config.json')
 
-    if not os.path.exists(DATA_PATH):
-        print("ไม่พบไฟล์สำหรับการเทรน กรุณาตรวจสอบตำแหน่งไฟล์ข้อมูลใหม่")
+    # ── โหลด Runs Configuration ──
+    if not os.path.exists(config_path):
+        print(f"[Error] ไม่พบไฟล์ runs_config.json ที่: {config_path}")
         sys.exit(1)
 
-    print("\n==========================================")
-    print(" เริ่มรันระบบฝึกสอนโมเดล (ML Training Pipeline)")
-    print("==========================================")
+    with open(config_path, 'r', encoding='utf-8') as f:
+        runs_config = json.load(f)
 
-    # 1. โหลดข้อมูล
-    df = dp.load_data(DATA_PATH)
-    
-    # 2. ทำความสะอาดข้อมูลดิบ
-    df = dp.handle_turbidity_zeros(df)
-    df = dp.winsorize_outliers(df, cols=['ph', 'tds'], iqr_factor=3.0)
+    runs = runs_config['runs']
+    print("\n" + "=" * 56)
+    print(" เริ่มรันระบบฝึกสอนโมเดล (Multi-Run Training Pipeline)")
+    print(f" จำนวน Runs: {len(runs)}")
+    print("=" * 56)
 
-    # 3. Resampling (ลดความละเอียดข้อมูล)
-    if CONFIG['RESAMPLE']:
-        df = dp.resample_data(df, CONFIG['RESAMPLE'])
-        interval_sec = 300   # 5 min = 300s
-    else:
-        interval_sec = 30    # 30s raw
+    # ── ประมวลผลแต่ละ Run ──
+    run_dataframes = []
+    Y_per_run      = {}
+    fog_day0_latest = None
 
-    # 4. Feature Engineering
-    df = feat.compute_cumulative_co2(df, interval_seconds=interval_sec)
-    Y = feat.compute_yield_coefficient(df, CONFIG['FOG_DAY0'], CONFIG['FOG_DAY7'])
-    df = feat.compute_fdei(df, CONFIG['FOG_DAY0'], Y)
+    for run_info in runs:
+        csv_path = os.path.join(data_dir, run_info['csv_file'])
 
-    # Sanity Check เปรียบเทียบกับค่าวิเคราะห์แล็บที่วันที่ 3 และ 7
-    feat.validate_fdei_against_lab(
-        fdei_series = df['fdei'],
-        df          = df,
-        fog_lab     = {3: 1121.333, 7: 166.667},
-        fog_day0    = CONFIG['FOG_DAY0']
-    )
+        if not os.path.exists(csv_path):
+            print(f"\n[Warning] ไม่พบไฟล์ {run_info['csv_file']} — ข้าม Run นี้")
+            continue
 
-    # 5. สร้าง Sequence Sliding Windows
+        fog_day0 = run_info['fog_day0']
+        fog_day7 = run_info['fog_day7']
+
+        if fog_day0 is None or fog_day7 is None:
+            print(f"\n[Warning] Run '{run_info['run_id']}' ไม่มีค่า FOG Lab — ข้าม Run นี้")
+            continue
+
+        df_run, Y_run, _ = feat.process_single_run(
+            csv_path            = csv_path,
+            fog_day0            = fog_day0,
+            fog_day7            = fog_day7,
+            fog_lab_checkpoints = run_info.get('fog_lab_checkpoints', {}),
+            resample_interval   = CONFIG['RESAMPLE'],
+            features            = FEATURES,
+            run_id              = run_info['run_id']
+        )
+
+        run_dataframes.append(df_run)
+        Y_per_run[run_info['run_id']] = Y_run
+        fog_day0_latest = fog_day0
+
+    if len(run_dataframes) == 0:
+        print("\n[Error] ไม่มี Run ที่สามารถประมวลผลได้ กรุณาตรวจสอบไฟล์ข้อมูลและ runs_config.json")
+        sys.exit(1)
+
+    print(f"\n{'═' * 56}")
+    print(f" สรุป Yield Coefficient (Y) ต่อ Run:")
+    for rid, yval in Y_per_run.items():
+        print(f"   {rid}: Y = {yval:.4f} (ppm·s per mg/L)")
+    print(f"{'═' * 56}")
+
+    # ── สร้าง Dataset รวมจากทุก Run ──
     (X_train, y_train,
      X_val,   y_val,
      X_test,  y_test,
-     scaler_X, scaler_y) = feat.prepare_dataset(
-        df,
-        features   = FEATURES,
-        target     = TARGET,
-        time_step  = CONFIG['TIME_STEP'],
-        train_ratio= CONFIG['TRAIN_RATIO'],
-        val_ratio  = CONFIG['VAL_RATIO']
+     scaler_X, scaler_y) = feat.prepare_multi_run_dataset(
+        run_dataframes = run_dataframes,
+        features       = FEATURES,
+        target         = TARGET,
+        time_step      = CONFIG['TIME_STEP'],
+        train_ratio    = CONFIG['TRAIN_RATIO'],
+        val_ratio      = CONFIG['VAL_RATIO']
     )
 
-    # 6. เทรนโมเดล CNN-GRU-SVR
+    # ── เทรนโมเดล CNN-GRU-SVR ──
     model, svr, extractor, history = full_train_pipeline(
         X_train, y_train, X_val, y_val, CONFIG
     )
 
-    # 7. ประเมินผล
+    # ── ประเมินผล ──
     mae, rmse, mape, y_true, y_pred = evaluate_model(
         svr, extractor, X_test, y_test, scaler_y
     )
 
-    # 8. บันทึกผลกราฟ
+    # ── บันทึกผลกราฟ ──
     plot_results(y_true, y_pred, history)
 
-    # 9. เซฟโมเดลและ configuration
+    # ── เซฟโมเดลและ configuration ──
     models_dir = os.path.join(base_dir, 'models')
     os.makedirs(models_dir, exist_ok=True)
 
@@ -216,18 +235,34 @@ if __name__ == '__main__':
     with open(os.path.join(models_dir, 'scaler_y.pkl'), 'wb') as f:
         pickle.dump(scaler_y, f)
 
+    # ── คำนวณ Y เฉลี่ยถ่วงน้ำหนักสำหรับ Inference ──
+    # ใช้จำนวนแถวของแต่ละ Run เป็นน้ำหนัก
+    Y_values = list(Y_per_run.values())
+    run_sizes = [len(df) for df in run_dataframes]
+    Y_weighted_avg = float(np.average(Y_values, weights=run_sizes))
+
     # เซฟ metadata สำหรับงาน inference
     meta = {
-        'Y': float(Y),
+        'Y': Y_weighted_avg,
+        'Y_per_run': {k: float(v) for k, v in Y_per_run.items()},
         'features': FEATURES,
         'target': TARGET,
         'time_step': int(CONFIG['TIME_STEP']),
-        'fog_day0': float(CONFIG['FOG_DAY0'])
+        'fog_day0': float(fog_day0_latest),
+        'runs_used': list(Y_per_run.keys()),
+        'total_sequences': int(X_train.shape[0] + X_val.shape[0] + X_test.shape[0]),
+        'metrics': {
+            'MAE': float(mae),
+            'RMSE': float(rmse),
+            'MAPE': float(mape)
+        }
     }
-    with open(os.path.join(models_dir, 'metadata.json'), 'w') as f:
-        json.dump(meta, f, indent=4)
+    with open(os.path.join(models_dir, 'metadata.json'), 'w', encoding='utf-8') as f:
+        json.dump(meta, f, indent=4, ensure_ascii=False)
         
     print(f"\n[Save] บันทึกโมเดลและ Scalers เรียบร้อยแล้วในโฟลเดอร์: {models_dir}")
-    print("\n==========================================")
-    print("เสร็จสิ้นขั้นตอนการเทรนอย่างสมบูรณ์")
-    print("==========================================")
+    print(f"[Save] Y (ถ่วงน้ำหนัก) = {Y_weighted_avg:.4f}")
+    print(f"[Save] Runs ที่ใช้เทรน: {list(Y_per_run.keys())}")
+    print("\n" + "=" * 56)
+    print(" เสร็จสิ้นขั้นตอนการเทรนอย่างสมบูรณ์ (Multi-Run)")
+    print("=" * 56)
