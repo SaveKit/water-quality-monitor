@@ -357,13 +357,8 @@ class DynamoDBRepository:
             "tds": "ppm",
             "turbidity": "NTU",
             "temp": "°C",
-            "fdei": "%"
         }
         unit = unit_map.get(sensor_type, "")
-
-        # ------- FDEI virtual sensor: compute dynamically from CO2 -------
-        if sensor_type == "fdei":
-            return self._fetch_historical_fdei(node_id, start_time, end_time)
 
         db_field = "temperature" if sensor_type == "temp" else sensor_type
 
@@ -405,78 +400,6 @@ class DynamoDBRepository:
                     ))
         except Exception as e:
             print(f"Error querying historical data: {e}")
-
-        return points
-
-    def _fetch_historical_fdei(
-        self, node_id: NodeID, start_time: datetime, end_time: datetime
-    ) -> list[HistoricalDataPoint]:
-        """Compute FDEI dynamically from historical CO2 data.
-        Uses cumulative trapezoidal integration from the experiment start
-        (7 days before start_time or earliest available data) up to each point."""
-        settings = self.fetch_settings()
-        fog_day0 = settings.get("fog_day0", DEFAULT_FOG_DAY0)
-        points = []
-
-        try:
-            # Fetch from experiment start (7 days before requested start) for full cumulative
-            experiment_start = start_time - timedelta(days=7)
-            start_ms = int(experiment_start.timestamp() * 1000)
-            end_ms = int(end_time.timestamp() * 1000)
-
-            response = self.sensor_table.query(
-                KeyConditionExpression=(
-                    Key("node_id").eq(node_id.value)
-                    & Key("timestamp").between(Decimal(start_ms), Decimal(end_ms))
-                ),
-                ScanIndexForward=True
-            )
-            items = response.get("Items", [])
-
-            while "LastEvaluatedKey" in response:
-                response = self.sensor_table.query(
-                    KeyConditionExpression=(
-                        Key("node_id").eq(node_id.value)
-                        & Key("timestamp").between(Decimal(start_ms), Decimal(end_ms))
-                    ),
-                    ScanIndexForward=True,
-                    ExclusiveStartKey=response["LastEvaluatedKey"]
-                )
-                items.extend(response.get("Items", []))
-
-            if len(items) >= 2:
-                cumulative = 0.0
-                for i in range(1, len(items)):
-                    co2_prev = self._convert_decimal(items[i - 1].get("co2"), 0.0)
-                    co2_curr = self._convert_decimal(items[i].get("co2"), 0.0)
-                    
-                    # Cap outlier spikes (sensor noise/errors)
-                    if co2_prev > 100.0:
-                        co2_prev = 5.0
-                    if co2_curr > 100.0:
-                        co2_curr = 5.0
-                        
-                    ts_prev = self._get_datetime_from_timestamp(items[i - 1].get("timestamp"))
-                    ts_curr = self._get_datetime_from_timestamp(items[i].get("timestamp"))
-                    delta_s = (ts_curr - ts_prev).total_seconds()
-                    if delta_s > 0:
-                        # Cap integration step at 5 minutes to avoid offline time gaps inflating cumulative CO2
-                        effective_delta = min(delta_s, 300.0)
-                        cumulative += (co2_prev + co2_curr) / 2.0 * effective_delta
-
-                    # Only emit points that fall within the requested range
-                    if ts_curr >= start_time:
-                        fdei = (cumulative / DEFAULT_Y) / fog_day0 * 100.0
-                        fdei = max(0.0, min(100.0, fdei))
-                        points.append(HistoricalDataPoint(
-                            node_id=node_id,
-                            sensor_type="fdei",
-                            value=round(fdei, 2),
-                            unit="%",
-                            timestamp=ts_curr
-                        ))
-        except Exception as e:
-            print(f"Error computing historical FDEI: {e}")
 
         return points
 

@@ -5,7 +5,6 @@ export const SENSOR_TYPES = [
   { key: "tds", label: "TDS", unit: "ppm" },
   { key: "turbidity", label: "Turbidity", unit: "NTU" },
   { key: "temp", label: "อุณหภูมิ (ควบคุม)", unit: "°C" },
-  { key: "fdei", label: "FDEI (ประสิทธิภาพการย่อย)", unit: "%" },
 ];
 
 // Alert type badges config

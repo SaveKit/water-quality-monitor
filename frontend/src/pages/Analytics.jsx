@@ -19,7 +19,6 @@ export default function Analytics() {
     tds: true,
     turbidity: false,
     temp: true,
-    fdei: true,
   });
 
   // Applied states (frozen at the moment of click)
@@ -32,7 +31,6 @@ export default function Analytics() {
     tds: true,
     turbidity: false,
     temp: true,
-    fdei: true,
   });
 
   const [historicalData, setHistoricalData] = useState({}); // { ph: { Node01: [...], Node02: [...] }, ... }
@@ -121,7 +119,6 @@ export default function Analytics() {
                 tds: null,
                 turbidity: null,
                 temp: null,
-                fdei: null,
               };
             }
             rowsMap[key][param] = pt.value;
@@ -158,7 +155,7 @@ export default function Analytics() {
     }
 
     // CSV Headers
-    const headers = ["node_id", "timestamp", "ph", "tds", "turbidity", "temperature", "co2", "fdei"];
+    const headers = ["node_id", "timestamp", "ph", "tds", "turbidity", "temperature", "co2"];
     
     // Convert rows to CSV format
     const csvRows = [
@@ -171,8 +168,7 @@ export default function Analytics() {
           row.tds !== null && row.tds !== undefined ? row.tds : "",
           row.turbidity !== null && row.turbidity !== undefined ? row.turbidity : "",
           row.temp !== null && row.temp !== undefined ? row.temp : "",
-          row.co2 !== null && row.co2 !== undefined ? row.co2 : "",
-          row.fdei !== null && row.fdei !== undefined ? row.fdei : ""
+          row.co2 !== null && row.co2 !== undefined ? row.co2 : ""
         ];
         return rowData.join(",");
       })
@@ -470,7 +466,6 @@ export default function Analytics() {
                         <th className="py-4 px-3 text-center">TDS (ppm)</th>
                         <th className="py-4 px-3 text-center">Turbidity (NTU)</th>
                         <th className="py-4 px-3 text-center">อุณหภูมิ (°C)</th>
-                        <th className="py-4 px-3 text-center">FDEI (%)</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-800/30 text-xs font-semibold">
@@ -505,15 +500,12 @@ export default function Analytics() {
                             <td className="py-4 px-3 text-center text-slate-200">
                               {row.temp !== null && row.temp !== undefined ? row.temp.toFixed(1) : "-"}
                             </td>
-                            <td className="py-4 px-3 text-center text-slate-200">
-                              {row.fdei !== null && row.fdei !== undefined ? row.fdei.toFixed(1) + "%" : "-"}
-                            </td>
                           </tr>
                         );
                       })}
                       {allTableData.length === 0 && (
                         <tr>
-                          <td colSpan="8" className="py-8 px-6 text-center text-slate-500 font-bold">
+                          <td colSpan="7" className="py-8 px-6 text-center text-slate-500 font-bold">
                             ไม่พบข้อมูลในช่วงเวลาและถังปฏิกรณ์ที่ระบุ
                           </td>
                         </tr>
