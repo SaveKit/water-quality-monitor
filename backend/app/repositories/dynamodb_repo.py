@@ -1,4 +1,5 @@
 import os
+import json
 from datetime import datetime, timezone, timedelta
 import boto3
 from boto3.dynamodb.conditions import Key
@@ -33,6 +34,8 @@ class DynamoDBRepository:
         self.forecast_table = self.dynamodb.Table(DYNAMODB_TABLE_FORECAST)
         self.alerts_table = self.dynamodb.Table(DYNAMODB_TABLE_ALERTS)
         self.settings_table = self.dynamodb.Table(DYNAMODB_TABLE_SETTINGS)
+        # Local JSON cache fallback for settings when AWS DynamoDB is offline or table does not exist
+        self.settings_file = os.path.join(os.path.dirname(__file__), "..", "..", "settings_cache.json")
 
     def _convert_decimal(self, val, default=0.0):
         if val is None:
@@ -55,23 +58,42 @@ class DynamoDBRepository:
         return datetime.now(timezone.utc)
 
     # ------------------------------------------------------------------
-    # Settings (SystemSettings table)
+    # Settings (SystemSettings table with local file cache fallback)
     # ------------------------------------------------------------------
+
+    def _save_local_settings(self, data: dict):
+        try:
+            with open(self.settings_file, "w") as f:
+                json.dump(data, f, indent=2)
+        except Exception as e:
+            print(f"Error saving local settings cache: {e}")
 
     def fetch_settings(self) -> dict:
         """Fetch system settings from SystemSettings table.
-        Returns defaults if table is empty or unavailable."""
+        Returns local cache/defaults if table is empty or unavailable."""
         defaults = {
             "fog_day0": DEFAULT_FOG_DAY0,
             "fdei_alert_threshold": 80.0
         }
+        
+        # Load from local cache first if available as baseline
+        local_cache = {}
+        if os.path.exists(self.settings_file):
+            try:
+                with open(self.settings_file, "r") as f:
+                    local_cache = json.load(f)
+            except Exception as e:
+                print(f"Error loading local settings cache: {e}")
+
+        current_settings = {**defaults, **local_cache}
+
         try:
             response = self.settings_table.get_item(
                 Key={"setting_id": "global"}
             )
             item = response.get("Item")
             if item:
-                return {
+                db_settings = {
                     "fog_day0": self._convert_decimal(
                         item.get("fog_day0"), DEFAULT_FOG_DAY0
                     ),
@@ -79,12 +101,23 @@ class DynamoDBRepository:
                         item.get("fdei_alert_threshold"), 80.0
                     ),
                 }
+                # Sync DynamoDB settings back to local cache
+                self._save_local_settings(db_settings)
+                return db_settings
         except Exception as e:
-            print(f"Error fetching settings: {e}")
-        return defaults
+            print(f"Error fetching settings from DynamoDB: {e}. Falling back to local cache.")
+        
+        return current_settings
 
     def update_settings(self, fog_day0: float, fdei_alert_threshold: float) -> dict:
-        """Write system settings to SystemSettings table."""
+        """Write system settings to SystemSettings table & local cache."""
+        settings_dict = {
+            "fog_day0": fog_day0,
+            "fdei_alert_threshold": fdei_alert_threshold,
+        }
+        # Always write to local cache file first
+        self._save_local_settings(settings_dict)
+
         try:
             self.settings_table.put_item(
                 Item={
@@ -95,11 +128,9 @@ class DynamoDBRepository:
                 }
             )
         except Exception as e:
-            print(f"Error updating settings: {e}")
-        return {
-            "fog_day0": fog_day0,
-            "fdei_alert_threshold": fdei_alert_threshold,
-        }
+            print(f"Error updating settings in DynamoDB: {e}")
+            
+        return settings_dict
 
     # ------------------------------------------------------------------
     # Real-time sensor data

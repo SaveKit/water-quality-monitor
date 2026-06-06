@@ -17,6 +17,7 @@ secrets.h
 *.cert.pem
 *.public.key
 /*.json
+backend/settings_cache.json
 
 # Machine Learning Artifacts & Outputs
 ml_pipeline/models/*.keras
