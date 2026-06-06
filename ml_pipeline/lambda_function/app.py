@@ -66,13 +66,27 @@ def get_latest_sensor_data(node_id, limit=120):
         return pd.DataFrame()
         
     df = pd.DataFrame(items)
-    # แปลงชนิดข้อมูล
-    df['timestamp'] = pd.to_datetime(df['timestamp'])
-    df['ph'] = df['ph'].astype(float)
-    df['co2'] = df['co2'].astype(float)
-    df['tds'] = df['tds'].astype(float)
-    df['turbidity'] = df['turbidity'].astype(float)
-    df['temp'] = df['temp'].astype(float)
+    # แปลงชนิดข้อมูล timestamp (รองรับทั้ง millisecond Unix timestamp และ ISO8601 string)
+    first_val = df['timestamp'].iloc[0] if not df.empty else None
+    if isinstance(first_val, (int, float)) or (first_val is not None and type(first_val).__name__ == 'Decimal'):
+        df['timestamp'] = pd.to_datetime(df['timestamp'].astype(float), unit='ms')
+    else:
+        df['timestamp'] = pd.to_datetime(df['timestamp'])
+        if df['timestamp'].dt.tz is not None:
+            df['timestamp'] = df['timestamp'].dt.tz_convert(None)
+
+    # กำหนดค่าเริ่มต้นและแปลงชนิดข้อมูลให้เป็น float (รองรับทั้ง 'temp' และ 'temperature')
+    for col, default_val in [('ph', 7.0), ('co2', 400.0), ('tds', 100.0), ('turbidity', 5.0), ('temp', 25.0)]:
+        if col not in df.columns:
+            if col == 'temp' and 'temperature' in df.columns:
+                df['temp'] = df['temperature']
+            else:
+                df[col] = default_val
+        df[col] = df[col].astype(float)
+        
+    if 'temperature' not in df.columns:
+        df['temperature'] = df['temp']
+
     
     df.rename(columns={'timestamp': 'datetime'}, inplace=True)
     df.set_index('datetime', inplace=True)
