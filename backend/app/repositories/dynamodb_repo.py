@@ -397,35 +397,6 @@ class DynamoDBRepository:
         except Exception as e:
             print(f"Error querying historical data: {e}")
 
-        # If no points found, return mock history to prevent blank graphs
-        if not points:
-            print("No historical points found. Returning mock historical range.")
-            # Generate mock points between start and end time (every 1 hour)
-            import random
-            current = start_time
-            random.seed(node_id.value + sensor_type)
-            while current <= end_time:
-                # generate realistic values
-                if sensor_type == "ph":
-                    val = random.normalvariate(7.2, 0.5)
-                elif sensor_type == "co2":
-                    val = random.normalvariate(450.0, 50.0)
-                elif sensor_type == "tds":
-                    val = random.normalvariate(150.0, 20.0)
-                elif sensor_type == "turbidity":
-                    val = random.normalvariate(3.0, 1.5)
-                else:
-                    val = random.normalvariate(26.0, 1.0)
-
-                points.append(HistoricalDataPoint(
-                    node_id=node_id,
-                    sensor_type=sensor_type,
-                    value=round(val, 2),
-                    unit=unit,
-                    timestamp=current
-                ))
-                current += timedelta(hours=1)
-
         return points
 
     def _fetch_historical_fdei(
@@ -488,25 +459,6 @@ class DynamoDBRepository:
                         ))
         except Exception as e:
             print(f"Error computing historical FDEI: {e}")
-
-        # Mock fallback
-        if not points:
-            print("No historical FDEI points. Returning mock FDEI history.")
-            import random
-            random.seed(node_id.value + "fdei")
-            current = start_time
-            fdei_val = 0.0
-            while current <= end_time:
-                fdei_val += random.uniform(0.3, 1.2)
-                fdei_val = min(fdei_val, 100.0)
-                points.append(HistoricalDataPoint(
-                    node_id=node_id,
-                    sensor_type="fdei",
-                    value=round(fdei_val, 2),
-                    unit="%",
-                    timestamp=current
-                ))
-                current += timedelta(hours=1)
 
         return points
 
