@@ -201,11 +201,20 @@ class DynamoDBRepository:
         for i in range(1, len(items)):
             co2_prev = self._convert_decimal(items[i - 1].get("co2"), 0.0)
             co2_curr = self._convert_decimal(items[i].get("co2"), 0.0)
+            
+            # Cap outlier spikes (sensor noise/errors)
+            if co2_prev > 100.0:
+                co2_prev = 5.0
+            if co2_curr > 100.0:
+                co2_curr = 5.0
+                
             ts_prev = self._get_datetime_from_timestamp(items[i - 1].get("timestamp"))
             ts_curr = self._get_datetime_from_timestamp(items[i].get("timestamp"))
             delta_seconds = (ts_curr - ts_prev).total_seconds()
             if delta_seconds > 0:
-                cumulative += (co2_prev + co2_curr) / 2.0 * delta_seconds
+                # Cap integration step at 5 minutes to avoid offline time gaps inflating cumulative CO2
+                effective_delta = min(delta_seconds, 300.0)
+                cumulative += (co2_prev + co2_curr) / 2.0 * effective_delta
         return cumulative
 
     def fetch_fdei_latest(self) -> list[FDEIResult]:
@@ -440,11 +449,20 @@ class DynamoDBRepository:
                 for i in range(1, len(items)):
                     co2_prev = self._convert_decimal(items[i - 1].get("co2"), 0.0)
                     co2_curr = self._convert_decimal(items[i].get("co2"), 0.0)
+                    
+                    # Cap outlier spikes (sensor noise/errors)
+                    if co2_prev > 100.0:
+                        co2_prev = 5.0
+                    if co2_curr > 100.0:
+                        co2_curr = 5.0
+                        
                     ts_prev = self._get_datetime_from_timestamp(items[i - 1].get("timestamp"))
                     ts_curr = self._get_datetime_from_timestamp(items[i].get("timestamp"))
                     delta_s = (ts_curr - ts_prev).total_seconds()
                     if delta_s > 0:
-                        cumulative += (co2_prev + co2_curr) / 2.0 * delta_s
+                        # Cap integration step at 5 minutes to avoid offline time gaps inflating cumulative CO2
+                        effective_delta = min(delta_s, 300.0)
+                        cumulative += (co2_prev + co2_curr) / 2.0 * effective_delta
 
                     # Only emit points that fall within the requested range
                     if ts_curr >= start_time:
