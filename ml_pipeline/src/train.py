@@ -131,75 +131,75 @@ def plot_results(y_true, y_pred, history):
 
 if __name__ == '__main__':
     # ══════════════════════════════════════════════════════════
-    # Multi-Run Training Pipeline
+    # Multi-Batch Training Pipeline
     # ══════════════════════════════════════════════════════════
     base_dir  = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
     data_dir  = os.path.join(base_dir, 'data')
-    config_path = os.path.join(data_dir, 'runs_config.json')
+    config_path = os.path.join(data_dir, 'batches_config.json')
 
-    # ── โหลด Runs Configuration ──
+    # ── โหลด Batches Configuration ──
     if not os.path.exists(config_path):
-        print(f"[Error] ไม่พบไฟล์ runs_config.json ที่: {config_path}")
+        print(f"[Error] ไม่พบไฟล์ batches_config.json ที่: {config_path}")
         sys.exit(1)
 
     with open(config_path, 'r', encoding='utf-8') as f:
-        runs_config = json.load(f)
+        batches_config = json.load(f)
 
-    runs = runs_config['runs']
+    batches = batches_config['batches']
     print("\n" + "=" * 56)
-    print(" เริ่มรันระบบฝึกสอนโมเดล (Multi-Run Training Pipeline)")
-    print(f" จำนวน Runs: {len(runs)}")
+    print(" เริ่มรันระบบฝึกสอนโมเดล (Multi-Batch Training Pipeline)")
+    print(f" จำนวน Batches: {len(batches)}")
     print("=" * 56)
 
-    # ── ประมวลผลแต่ละ Run ──
-    run_dataframes = []
-    Y_per_run      = {}
+    # ── ประมวลผลแต่ละ Batch ──
+    batch_dataframes = []
+    Y_per_batch      = {}
     fog_day0_latest = None
 
-    for run_info in runs:
-        csv_path = os.path.join(data_dir, run_info['csv_file'])
+    for batch_info in batches:
+        csv_path = os.path.join(data_dir, batch_info['csv_file'])
 
         if not os.path.exists(csv_path):
-            print(f"\n[Warning] ไม่พบไฟล์ {run_info['csv_file']} — ข้าม Run นี้")
+            print(f"\n[Warning] ไม่พบไฟล์ {batch_info['csv_file']} — ข้าม Batch นี้")
             continue
 
-        fog_day0 = run_info['fog_day0']
-        fog_day7 = run_info['fog_day7']
+        fog_day0 = batch_info['fog_day0']
+        fog_day7 = batch_info['fog_day7']
 
         if fog_day0 is None or fog_day7 is None:
-            print(f"\n[Warning] Run '{run_info['run_id']}' ไม่มีค่า FOG Lab — ข้าม Run นี้")
+            print(f"\n[Warning] Batch '{batch_info['batch_id']}' ไม่มีค่า FOG Lab — ข้าม Batch นี้")
             continue
 
-        df_run, Y_run, _ = feat.process_single_run(
+        df_batch, Y_batch, _ = feat.process_single_batch(
             csv_path            = csv_path,
             fog_day0            = fog_day0,
             fog_day7            = fog_day7,
-            fog_lab_checkpoints = run_info.get('fog_lab_checkpoints', {}),
+            fog_lab_checkpoints = batch_info.get('fog_lab_checkpoints', {}),
             resample_interval   = CONFIG['RESAMPLE'],
             features            = FEATURES,
-            run_id              = run_info['run_id']
+            batch_id            = batch_info['batch_id']
         )
 
-        run_dataframes.append(df_run)
-        Y_per_run[run_info['run_id']] = Y_run
+        batch_dataframes.append(df_batch)
+        Y_per_batch[batch_info['batch_id']] = Y_run = Y_batch
         fog_day0_latest = fog_day0
 
-    if len(run_dataframes) == 0:
-        print("\n[Error] ไม่มี Run ที่สามารถประมวลผลได้ กรุณาตรวจสอบไฟล์ข้อมูลและ runs_config.json")
+    if len(batch_dataframes) == 0:
+        print("\n[Error] ไม่มี Batch ที่สามารถประมวลผลได้ กรุณาตรวจสอบไฟล์ข้อมูลและ batches_config.json")
         sys.exit(1)
 
     print(f"\n{'═' * 56}")
-    print(f" สรุป Yield Coefficient (Y) ต่อ Run:")
-    for rid, yval in Y_per_run.items():
-        print(f"   {rid}: Y = {yval:.4f} (ppm·s per mg/L)")
+    print(f" สรุป Yield Coefficient (Y) ต่อ Batch:")
+    for bid, yval in Y_per_batch.items():
+        print(f"   {bid}: Y = {yval:.4f} (ppm·s per mg/L)")
     print(f"{'═' * 56}")
 
-    # ── สร้าง Dataset รวมจากทุก Run ──
+    # ── สร้าง Dataset รวมจากทุก Batch ──
     (X_train, y_train,
      X_val,   y_val,
      X_test,  y_test,
-     scaler_X, scaler_y) = feat.prepare_multi_run_dataset(
-        run_dataframes = run_dataframes,
+     scaler_X, scaler_y) = feat.prepare_multi_batch_dataset(
+        batch_dataframes = batch_dataframes,
         features       = FEATURES,
         target         = TARGET,
         time_step      = CONFIG['TIME_STEP'],
@@ -236,20 +236,20 @@ if __name__ == '__main__':
         pickle.dump(scaler_y, f)
 
     # ── คำนวณ Y เฉลี่ยถ่วงน้ำหนักสำหรับ Inference ──
-    # ใช้จำนวนแถวของแต่ละ Run เป็นน้ำหนัก
-    Y_values = list(Y_per_run.values())
-    run_sizes = [len(df) for df in run_dataframes]
-    Y_weighted_avg = float(np.average(Y_values, weights=run_sizes))
+    # ใช้จำนวนแถวของแต่ละ Batch เป็นน้ำหนัก
+    Y_values = list(Y_per_batch.values())
+    batch_sizes = [len(df) for df in batch_dataframes]
+    Y_weighted_avg = float(np.average(Y_values, weights=batch_sizes))
 
     # เซฟ metadata สำหรับงาน inference
     meta = {
         'Y': Y_weighted_avg,
-        'Y_per_run': {k: float(v) for k, v in Y_per_run.items()},
+        'Y_per_batch': {k: float(v) for k, v in Y_per_batch.items()},
         'features': FEATURES,
         'target': TARGET,
         'time_step': int(CONFIG['TIME_STEP']),
         'fog_day0': float(fog_day0_latest),
-        'runs_used': list(Y_per_run.keys()),
+        'batches_used': list(Y_per_batch.keys()),
         'total_sequences': int(X_train.shape[0] + X_val.shape[0] + X_test.shape[0]),
         'metrics': {
             'MAE': float(mae),
@@ -262,7 +262,7 @@ if __name__ == '__main__':
         
     print(f"\n[Save] บันทึกโมเดลและ Scalers เรียบร้อยแล้วในโฟลเดอร์: {models_dir}")
     print(f"[Save] Y (ถ่วงน้ำหนัก) = {Y_weighted_avg:.4f}")
-    print(f"[Save] Runs ที่ใช้เทรน: {list(Y_per_run.keys())}")
+    print(f"[Save] Batches ที่ใช้เทรน: {list(Y_per_batch.keys())}")
     print("\n" + "=" * 56)
-    print(" เสร็จสิ้นขั้นตอนการเทรนอย่างสมบูรณ์ (Multi-Run)")
+    print(" เสร็จสิ้นขั้นตอนการเทรนอย่างสมบูรณ์ (Multi-Batch)")
     print("=" * 56)

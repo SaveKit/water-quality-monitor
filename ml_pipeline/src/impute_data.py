@@ -3,7 +3,7 @@ import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
 
-def impute_experiment_data(input_csv, template1_csv, template2_csv, output_csv, run_id, node_id):
+def impute_experiment_data(input_csv, template1_csv, template2_csv, output_csv, batch_id, node_id):
     """
     เติมเต็มข้อมูลของ Experiment 2 โดย:
     - พารามิเตอร์ทั่วไป (pH, TDS, Turbidity, Temp) ใช้ Experiment 1 (new_data) เป็นต้นแบบหลัก
@@ -21,7 +21,7 @@ def impute_experiment_data(input_csv, template1_csv, template2_csv, output_csv, 
     output_csv : str
         ไฟล์ผลลัพธ์ที่จะเขียนเซฟกลับไป
     """
-    print(f"\n[Imputation] เริ่มประมวลผล Run: {run_id} | Node: {node_id}")
+    print(f"\n[Imputation] เริ่มประมวลผล Batch: {batch_id} | Node: {node_id}")
     print(f"  โหลดไฟล์อินพุต: {input_csv}")
     print(f"  โหลดไฟล์ต้นแบบ 1 (Exp 1): {template1_csv}")
     print(f"  โหลดไฟล์ต้นแบบ 2 (Exp 3): {template2_csv}")
@@ -96,7 +96,7 @@ def impute_experiment_data(input_csv, template1_csv, template2_csv, output_csv, 
         row_t2 = df_exp3_t2.iloc[min(i, len(df_exp3_t2) - 1)]
         
         for col in cols_to_impute:
-            if col == 'co2' and run_id == 'run2' and node_id == 'Node01':
+            if col == 'co2' and batch_id == 'batch2' and node_id == 'Node01':
                 # สูตรคำนวณแบบผสม (Blended CO2) เพื่อคุมจุดยอดเฉลี่ย 6.5 ppm และทรงตัวช่วงปลาย
                 trend_t2 = row_t2[col] - val_t2_ref[col]  # เทรนด์ความผันผวนจาก Exp 3
                 trend_t1 = row_t1[col] - val_t1_ref[col]  # เทรนด์ความราบเรียบจาก Exp 1
@@ -180,7 +180,7 @@ if __name__ == '__main__':
         template1_csv=node01_t1,
         template2_csv=node01_t2,
         output_csv=node01_output,
-        run_id='run2',
+        batch_id='batch2',
         node_id='Node01'
     )
     
@@ -202,7 +202,7 @@ if __name__ == '__main__':
         template1_csv=node02_t1,
         template2_csv=node02_t2,
         output_csv=node02_output,
-        run_id='run2',
+        batch_id='batch2',
         node_id='Node02'
     )
     

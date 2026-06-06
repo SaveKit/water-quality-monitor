@@ -1,7 +1,7 @@
 {
-    "runs": [
+    "batches": [
         {
-            "run_id": "run1",
+            "batch_id": "batch1",
             "csv_file": "node01_new_data_7days.csv",
             "fog_day0": 2250.667,
             "fog_day7": 166.667,
@@ -17,7 +17,7 @@
             "description": "Experiment 1 — รอบแรก (เม.ย. 2026)"
         },
         {
-            "run_id": "run2",
+            "batch_id": "batch2",
             "csv_file": "node01_experiment2_data_7days.csv",
             "fog_day0": 2892.0,
             "fog_day7": 989.333,
@@ -33,7 +33,7 @@
             "description": "Experiment 2 — รอบที่ 2 (พ.ค. 2026)"
         },
         {
-            "run_id": "run3",
+            "batch_id": "batch3",
             "csv_file": "node01_experiment3_data_7days.csv",
             "fog_day0": 2892.0,
             "fog_day7": 993.333,

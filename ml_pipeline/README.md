@@ -17,7 +17,7 @@ ml_pipeline/
 │   ├── node02_experiment2_data_7days_backup.csv # ข้อมูลดั้งเดิม Control ก่อนเติมเต็ม
 │   ├── node01_experiment3_data_7days.csv       # ข้อมูลจริง Experiment 3 (Node 1 - Sample)
 │   ├── node02_experiment3_data_7days.csv       # ข้อมูลจริง Experiment 3 (Node 2 - Control)
-│   └── runs_config.json                        # ค่าการวิเคราะห์แล็บ FOG และการตั้งค่าแต่ละ Run
+│   └── batches_config.json                     # ค่าการวิเคราะห์แล็บ FOG และการตั้งค่าแต่ละ Batch
 ├── models/                     # 📂 ไฟล์โมเดลและ Scalers ที่ฝึกสอนเสร็จแล้ว
 │   ├── cnn_gru_model.keras     # โครงข่ายหลัก CNN-GRU
 │   ├── svr_model.pkl           # โมเดล Regression ชั้นนอก SVR
@@ -34,9 +34,9 @@ ml_pipeline/
 │   └── requirements.txt        # dependencies สำหรับการทำงานบน AWS Lambda
 ├── src/                        # 📂 โค้ดหลักแบบแยกส่วน (Modular Source Code)
 │   ├── preprocess.py           # การกรองค่าว่าง, Winsorization, และ Resampling ข้อมูล
-│   ├── features.py             # การประมวลผล Cumulative CO2, Yield Y, FDEI และจัดเตรียม Dataset แยกราย Run
+│   ├── features.py             # การประมวลผล Cumulative CO2, Yield Y, FDEI และจัดเตรียม Dataset แยกราย Batch
 │   ├── model.py                # นิยามสถาปัตยกรรมโครงข่ายประสาทเทียมผสม CNN-GRU
-│   ├── train.py                # สคริปต์หลักในการดึงข้อมูลทุก Run มาเทรนโมเดลแบบ Local
+│   ├── train.py                # สคริปต์หลักในการดึงข้อมูลทุก Batch มาเทรนโมเดลแบบ Local
 │   ├── inference.py            # ตรรกะการพยากรณ์แบบ Recursive (Autoregressive) และการแปลงค่า FDEI ล่วงหน้า
 │   ├── impute_data.py          # สคริปต์เติมเต็มข้อมูลที่สูญหายของ Experiment 2 (ด้วยเทคนิค Blending & Scaling)
 │   ├── data_pipeline.py        # Facade สำหรับเชื่อมโยงการทำงานด้าน Preprocess/Features (Backward Compatible)
@@ -45,6 +45,8 @@ ml_pipeline/
 │   ├── graph_summary_th.md     # รายงานเปรียบเทียบคุณภาพของข้อมูลและการพยากรณ์ (ภาษาไทย)
 │   ├── figures/                # โฟลเดอร์เก็บรูปภาพกราฟผลลัพธ์
 │   └── tables/                 # โฟลเดอร์เก็บตารางผลการประเมิน
+├── evaluate_unseen_batch.py    # สคริปต์ประเมินโมเดลกับข้อมูลชุดทดลองใหม่ (Unseen Batch)
+├── test_lambda_local.py        # สคริปต์จำลองการทำงานของ Lambda แบบ Local
 ├── requirements.txt            # dependencies สำหรับพัฒนาและทดสอบบนเครื่อง Local
 └── README.md                   # คู่มือแนะนำฉบับนี้
 ```
@@ -69,7 +71,7 @@ python -m src.impute_data
 - กราฟเปรียบเทียบก่อน-หลังเติมข้อมูลเพื่อตรวจทานความเนียนเรียบใน `reports/figures/imputation_comparison_node0*.png`
 
 ### 3. รันสคริปต์ฝึกสอนโมเดล (Training)
-คุณสามารถเริ่มต้นการประมวลผลข้อมูลใหม่ทุกๆ Runs และฝึกสอนโมเดล CNN-GRU-SVR ใหม่ได้ด้วยคำสั่ง:
+คุณสามารถเริ่มต้นการประมวลผลข้อมูลใหม่ทุกๆ Batches และฝึกสอนโมเดล CNN-GRU-SVR ใหม่ได้ด้วยคำสั่ง:
 ```bash
 python -m src.train
 ```

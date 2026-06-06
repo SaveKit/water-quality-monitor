@@ -17,9 +17,9 @@ from src import preprocess as dp
 from src import features as feat
 from src import inference as inf
 
-def evaluate_unseen_data(csv_path, fog_day0, fog_day7, run_id='unseen_run'):
+def evaluate_unseen_data(csv_path, fog_day0, fog_day7, batch_id='unseen_batch'):
     print(f"\n{'=' * 60}")
-    print(f" เริ่มต้นการทดสอบโมเดลกับข้อมูลใหม่ (Unseen Run): {run_id}")
+    print(f" เริ่มต้นการทดสอบโมเดลกับข้อมูลใหม่ (Unseen Batch): {batch_id}")
     print(f" ไฟล์ข้อมูล: {csv_path}")
     print(f"{'=' * 60}")
 
@@ -50,10 +50,10 @@ def evaluate_unseen_data(csv_path, fog_day0, fog_day7, run_id='unseen_run'):
     df_resampled = dp.resample_data(df, resample_interval)
     interval_sec = int(pd.Timedelta(resample_interval).total_seconds())
 
-    # 3. คำนวณค่าจริงของ FDEI โดยใช้ Yield (Y) เฉพาะตัวของ Run นี้ (Calibrate)
+    # 3. คำนวณค่าจริงของ FDEI โดยใช้ Yield (Y) เฉพาะตัวของ Batch นี้ (Calibrate)
     df_resampled = feat.compute_cumulative_co2(df_resampled, interval_seconds=interval_sec)
     
-    # หาค่า Y ของรันใหม่จากผลแล็บ
+    # หาค่า Y ของแบทช์ใหม่จากผลแล็บ
     Y_calibrated = feat.compute_yield_coefficient(df_resampled, fog_day0, fog_day7)
     df_resampled = feat.compute_fdei(df_resampled, fog_day0, Y_calibrated)
 
@@ -88,7 +88,7 @@ def evaluate_unseen_data(csv_path, fog_day0, fog_day7, run_id='unseen_run'):
     mape = np.mean(np.abs((y_true_co2 - y_pred_co2) / (y_true_co2 + 1e-8))) * 100
 
     print("\n" + "=" * 45)
-    print(f" ดัชนีวัดประสิทธิภาพการทำนาย CO2 (สำหรับ {run_id})")
+    print(f" ดัชนีวัดประสิทธิภาพการทำนาย CO2 (สำหรับ {batch_id})")
     print("=" * 45)
     print(f"  MAE  : {mae:.4f} ppm")
     print(f"  RMSE : {rmse:.4f} ppm")
@@ -113,13 +113,13 @@ def evaluate_unseen_data(csv_path, fog_day0, fog_day7, run_id='unseen_run'):
     # ตัด FDEI จริงให้มีความยาวเท่ากับช่วงทำนาย
     y_true_fdei = df_resampled['fdei'].iloc[time_step:].values
 
-    # 7. พลอตกราฟผลการทดสอบ
+    # 7. พลоตกราฟผลการทดสอบ
     fig, axes = plt.subplots(2, 1, figsize=(12, 10))
 
     # กราฟ CO2
     axes[0].plot(df_resampled['datetime'].iloc[time_step:], y_true_co2, label='Actual CO₂ (ข้อมูลจริง)', color='#1D9E75', lw=1.5)
     axes[0].plot(df_resampled['datetime'].iloc[time_step:], y_pred_co2, label='Predicted CO₂ (โมเดลทำนาย)', color='#534AB7', lw=1.5, linestyle='--')
-    axes[0].set_title(f'CO₂ Prediction Performance ({run_id})', fontsize=14, fontweight='bold')
+    axes[0].set_title(f'CO₂ Prediction Performance ({batch_id})', fontsize=14, fontweight='bold')
     axes[0].set_ylabel('CO₂ (ppm)')
     axes[0].legend()
     axes[0].grid(alpha=0.3)
@@ -136,7 +136,7 @@ def evaluate_unseen_data(csv_path, fog_day0, fog_day7, run_id='unseen_run'):
     plt.tight_layout()
     output_dir = os.path.join(base_dir, 'reports', 'figures')
     os.makedirs(output_dir, exist_ok=True)
-    fig_path = os.path.join(output_dir, f'unseen_evaluation_{run_id}.png')
+    fig_path = os.path.join(output_dir, f'unseen_evaluation_{batch_id}.png')
     plt.savefig(fig_path, dpi=150, bbox_inches='tight')
     plt.close()
     print(f"\n[Plot Success] บันทึกกราฟเปรียบเทียบผลการประเมินแล้วที่: {fig_path}")
@@ -147,10 +147,10 @@ if __name__ == '__main__':
         csv_path = sys.argv[1]
         fog_day0 = float(sys.argv[2])
         fog_day7 = float(sys.argv[3])
-        run_id = sys.argv[4] if len(sys.argv) > 4 else 'unseen_run'
-        evaluate_unseen_data(csv_path, fog_day0, fog_day7, run_id)
+        batch_id = sys.argv[4] if len(sys.argv) > 4 else 'unseen_batch'
+        evaluate_unseen_data(csv_path, fog_day0, fog_day7, batch_id)
     else:
-        # หากไม่ได้ระบุ ให้ใช้ข้อมูลของ Run 3 ที่อยู่ในโฟลเดอร์ data เป็นตัวอย่างทดสอบ
+        # หากไม่ได้ระบุ ให้ใช้ข้อมูลของ Batch 3 ที่อยู่ในโฟลเดอร์ data เป็นตัวอย่างทดสอบ
         data_dir = os.path.join(base_dir, 'data')
         example_csv = os.path.join(data_dir, 'node01_experiment3_data_7days.csv')
         
@@ -160,7 +160,7 @@ if __name__ == '__main__':
             csv_path=example_csv,
             fog_day0=2892.0,
             fog_day7=993.333,
-            run_id='experiment3_demo'
+            batch_id='experiment3_demo'
         )
         print("\n💡 คุณสามารถใช้งานสคริปต์นี้เพื่อตรวจข้อมูลใหม่ได้ตามตัวอย่าง:")
-        print("python evaluate_unseen_run.py <path_to_csv> <fog_day0> <fog_day7> [run_id]")
+        print("python evaluate_unseen_batch.py <path_to_csv> <fog_day0> <fog_day7> [batch_id]")

@@ -107,19 +107,20 @@ def prepare_dataset(df, features, target, time_step, train_ratio=0.70, val_ratio
 
 
 # ══════════════════════════════════════════════════════════════
-# Multi-Run Support Functions
+# ══════════════════════════════════════════════════════════════
+# Multi-Batch Support Functions
 # ══════════════════════════════════════════════════════════════
 
-def process_single_run(csv_path, fog_day0, fog_day7, fog_lab_checkpoints,
-                       resample_interval, features, run_id='unknown'):
+def process_single_batch(csv_path, fog_day0, fog_day7, fog_lab_checkpoints,
+                         resample_interval, features, batch_id='unknown'):
     """
-    ประมวลผลข้อมูลของ 1 Run ทั้งหมด:
+    ประมวลผลข้อมูลของ 1 Batch ทั้งหมด:
     Load → Clean → Resample → Cumulative CO₂ → Y → FDEI → Validate
 
     Parameters
     ----------
     csv_path : str
-        Path ไปยังไฟล์ CSV ของ Run นี้
+        Path ไปยังไฟล์ CSV ของ Batch นี้
     fog_day0 : float
         ค่า FOG Day0 (mg/L) จากห้องแล็บ
     fog_day7 : float
@@ -130,15 +131,15 @@ def process_single_run(csv_path, fog_day0, fog_day7, fog_lab_checkpoints,
         ช่วง resampling เช่น '5min' หรือ None (ใช้ 30s ดิบ)
     features : list[str]
         รายชื่อคอลัมน์ฟีเจอร์ เช่น ['co2', 'ph', 'tds', 'turbidity']
-    run_id : str
-        ชื่อ Run สำหรับ log
+    batch_id : str
+        ชื่อ Batch สำหรับ log
 
     Returns
     -------
     df : pd.DataFrame
         DataFrame ที่ประมวลผลแล้ว (มีคอลัมน์ co2_cumulative, fdei)
     Y : float
-        Yield Coefficient ของ Run นี้
+        Yield Coefficient ของ Batch นี้
     interval_sec : int
         ระยะเวลาช่วง sampling (วินาที) หลัง resampling
     """
@@ -146,7 +147,7 @@ def process_single_run(csv_path, fog_day0, fog_day7, fog_lab_checkpoints,
     from src import preprocess as dp
 
     print(f"\n{'─' * 50}")
-    print(f"  Processing Run: {run_id}")
+    print(f"  Processing Batch: {batch_id}")
     print(f"  File: {csv_path}")
     print(f"  FOG Day0={fog_day0:.3f}  Day7={fog_day7:.3f}")
     print(f"{'─' * 50}")
@@ -180,22 +181,22 @@ def process_single_run(csv_path, fog_day0, fog_day7, fog_lab_checkpoints,
             fog_day0=fog_day0
         )
 
-    print(f"[Run {run_id}] ประมวลผลสำเร็จ: {len(df):,} แถว | Y={Y:.4f}")
+    print(f"[Batch {batch_id}] ประมวลผลสำเร็จ: {len(df):,} แถว | Y={Y:.4f}")
     return df, Y, interval_sec
 
 
-def prepare_multi_run_dataset(run_dataframes, features, target,
-                              time_step, train_ratio=0.70, val_ratio=0.15):
+def prepare_multi_batch_dataset(batch_dataframes, features, target,
+                                time_step, train_ratio=0.70, val_ratio=0.15):
     """
-    รวมข้อมูลจากหลาย Run เพื่อเตรียมชุดเทรน:
-    1. Fit Scaler บนข้อมูลรวมทุก Run (global normalization)
-    2. สร้าง Sliding Window แยกต่อ Run (ไม่ข้ามขอบเขต)
+    รวมข้อมูลจากหลาย Batch เพื่อเตรียมชุดเทรน:
+    1. Fit Scaler บนข้อมูลรวมทุก Batch (global normalization)
+    2. สร้าง Sliding Window แยกต่อ Batch (ไม่ข้ามขอบเขต)
     3. Concat sequences ทั้งหมดแล้วแบ่ง Train/Val/Test
 
     Parameters
     ----------
-    run_dataframes : list[pd.DataFrame]
-        List ของ DataFrame ที่ผ่าน process_single_run() แล้ว
+    batch_dataframes : list[pd.DataFrame]
+        List ของ DataFrame ที่ผ่าน process_single_batch() แล้ว
     features : list[str]
         รายชื่อคอลัมน์ฟีเจอร์
     target : str
@@ -213,9 +214,9 @@ def prepare_multi_run_dataset(run_dataframes, features, target,
     """
     from sklearn.preprocessing import MinMaxScaler
 
-    # ── Step 1: รวมข้อมูลดิบทุก Run เพื่อ Fit Scaler แบบ Global ──
-    all_features_raw = pd.concat([df[features] for df in run_dataframes], ignore_index=True)
-    all_target_raw   = pd.concat([df[[target]] for df in run_dataframes], ignore_index=True)
+    # ── Step 1: รวมข้อมูลดิบทุก Batch เพื่อ Fit Scaler แบบ Global ──
+    all_features_raw = pd.concat([df[features] for df in batch_dataframes], ignore_index=True)
+    all_target_raw   = pd.concat([df[[target]] for df in batch_dataframes], ignore_index=True)
 
     scaler_X = MinMaxScaler()
     scaler_y = MinMaxScaler()
@@ -224,30 +225,30 @@ def prepare_multi_run_dataset(run_dataframes, features, target,
     scaler_y.fit(all_target_raw.values)
 
     total_rows = len(all_features_raw)
-    print(f"\n[Multi-Run] รวมข้อมูลทั้งหมด: {total_rows:,} แถว จาก {len(run_dataframes)} runs")
-    print(f"[Multi-Run] Fit Scaler (Global) สำเร็จ")
+    print(f"\n[Multi-Batch] รวมข้อมูลทั้งหมด: {total_rows:,} แถว จาก {len(batch_dataframes)} batches")
+    print(f"[Multi-Batch] Fit Scaler (Global) สำเร็จ")
 
-    # ── Step 2: สร้าง Sequences แยกต่อ Run (ป้องกันข้ามขอบเขต) ──
+    # ── Step 2: สร้าง Sequences แยกต่อ Batch (ป้องกันข้ามขอบเขต) ──
     all_X, all_y = [], []
-    for i, df in enumerate(run_dataframes):
+    for i, df in enumerate(batch_dataframes):
         X_scaled = scaler_X.transform(df[features].values)
         y_scaled = scaler_y.transform(df[[target]].values).flatten()
 
         X_seq, y_seq = create_sequences_1step(X_scaled, y_scaled, time_step)
         all_X.append(X_seq)
         all_y.append(y_seq)
-        print(f"  Run {i+1}: {len(df):,} แถว → {X_seq.shape[0]:,} sequences")
+        print(f"  Batch {i+1}: {len(df):,} แถว → {X_seq.shape[0]:,} sequences")
 
     X_all = np.concatenate(all_X, axis=0)
     y_all = np.concatenate(all_y, axis=0)
-    print(f"[Multi-Run] รวม Sequences ทั้งหมด: {X_all.shape[0]:,}")
+    print(f"[Multi-Batch] รวม Sequences ทั้งหมด: {X_all.shape[0]:,}")
 
     # ── Step 3: แบ่ง Train / Val / Test ──
     n = X_all.shape[0]
     n_train = int(n * train_ratio)
     n_val   = int(n * val_ratio)
 
-    # Shuffle เพื่อให้แต่ละ split มีตัวแทนจากทุก Run
+    # Shuffle เพื่อให้แต่ละ split มีตัวแทนจากทุก Batch
     indices = np.random.RandomState(42).permutation(n)
     X_all = X_all[indices]
     y_all = y_all[indices]
@@ -259,7 +260,7 @@ def prepare_multi_run_dataset(run_dataframes, features, target,
     X_test  = X_all[n_train+n_val:]
     y_test  = y_all[n_train+n_val:]
 
-    print(f"[Multi-Run Split] Train: {X_train.shape} | Val: {X_val.shape} | Test: {X_test.shape}")
+    print(f"[Multi-Batch Split] Train: {X_train.shape} | Val: {X_val.shape} | Test: {X_test.shape}")
     return (X_train, y_train,
             X_val,   y_val,
             X_test,  y_test,
