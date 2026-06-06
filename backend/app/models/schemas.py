@@ -3,14 +3,8 @@ from datetime import datetime
 from pydantic import BaseModel
 
 class NodeID(str, Enum):
-    NODE01 = "Node01"
-    NODE02 = "Node02"
-
-class WQIStatus(str, Enum):
-    GOOD     = "GOOD"      # 0–50
-    FAIR     = "FAIR"      # 51–75
-    POOR     = "POOR"      # 76–100
-    CRITICAL = "CRITICAL"  # >100
+    NODE01 = "Node01"  # Sample (Bacillus spp.)
+    NODE02 = "Node02"  # Control
 
 class RealTimeRecord(BaseModel):
     node_id: NodeID
@@ -21,30 +15,31 @@ class RealTimeRecord(BaseModel):
     temp: float
     timestamp: datetime
 
-class WQIResult(BaseModel):
+class FDEIResult(BaseModel):
     node_id: NodeID
-    wqi: float
-    status: WQIStatus
-    status_label: str   # ภาษาไทย เช่น "ดีเยี่ยม / ดี", "พอใช้"
+    fdei: float             # 0 - 100%
+    co2_cumulative: float   # ppm·s
     timestamp: datetime
 
 class ForecastResult(BaseModel):
     node_id: NodeID
-    forecasted_wqi: float
-    wqi_status: WQIStatus
-    recommendation: str  # เช่น "เฝ้าระวัง", "บำบัดขั้นที่สอง"
+    forecasted_co2: float   # predicted CO2 (ppm)
+    forecasted_fdei: float  # predicted FDEI (%)
     timestamp: datetime
 
 class HistoricalDataPoint(BaseModel):
     node_id: NodeID
-    sensor_type: str     # "ph" | "co2" | "tds" | "turbidity" | "temp"
+    sensor_type: str     # "ph" | "co2" | "tds" | "turbidity" | "temp" | "fdei"
     value: float
     unit: str
     timestamp: datetime
 
 class Alert(BaseModel):
     node_id: NodeID
-    wqi_value: float
-    status: WQIStatus
-    recommendation: str
+    fdei_value: float
+    alert_type: str         # "PLATEAU" | "TARGET_REACHED" | "ABNORMAL"
     timestamp: datetime
+
+class SystemSettings(BaseModel):
+    fog_day0: float = 2892.0
+    fdei_alert_threshold: float = 80.0

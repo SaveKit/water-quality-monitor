@@ -2,7 +2,7 @@ import React, { useEffect, useState } from "react";
 import Navbar from "../components/Navbar";
 import AlertTable from "../components/AlertTable";
 import client from "../api/client";
-import { Activity, AlertTriangle, Info, Menu, Droplet } from "lucide-react";
+import { Activity, AlertTriangle, Info, Menu, FlaskConical } from "lucide-react";
 
 export default function AlertHistory() {
   const [alerts, setAlerts] = useState([]);
@@ -32,9 +32,9 @@ export default function AlertHistory() {
       <div className="md:hidden flex h-16 items-center justify-between px-4 bg-slate-900/90 border-b border-slate-800/80 sticky top-0 z-40 backdrop-blur-md">
         <div className="flex items-center gap-2">
           <div className="w-8 h-8 rounded-lg bg-gradient-to-tr from-cyan-500 to-blue-600 flex items-center justify-center">
-            <Droplet className="w-4 h-4 text-white" />
+            <FlaskConical className="w-4 h-4 text-white" />
           </div>
-          <span className="font-bold text-white text-sm tracking-wider">WQ-MONITOR</span>
+          <span className="font-bold text-white text-sm tracking-wider">FOG-MONITOR</span>
         </div>
         <button 
           onClick={() => setIsSidebarOpen(true)}
@@ -53,7 +53,7 @@ export default function AlertHistory() {
           {/* Header */}
           <header className="mb-8">
             <h1 className="text-xl md:text-2xl font-black text-white">ประวัติการแจ้งเตือน (Alert History)</h1>
-            <p className="text-sm text-slate-400 font-semibold mt-1">ประวัติสภาวะวิกฤตคุณภาพน้ำที่สุ่มเสี่ยงและระดับการตอบสนองระบบบำบัด</p>
+            <p className="text-sm text-slate-400 font-semibold mt-1">ประวัติเหตุการณ์เมื่อกิจกรรมการย่อยสลายไขมันผิดปกติ หรือประสิทธิภาพ FDEI ถึงเป้าหมาย</p>
           </header>
 
           {error && (
@@ -76,8 +76,8 @@ export default function AlertHistory() {
                 <div>
                   <strong className="font-bold">กฎการแจ้งเตือน (Alerting Rules):</strong>
                   <p className="text-amber-400/80 mt-1 leading-relaxed">
-                    ระบบส่งสัญญาณแจ้งเตือนอัตโนมัติไปยังกลุ่มงานควบคุมบำบัดน้ำเสียผ่าน Telegram API ทันทีที่การพยากรณ์คุณภาพน้ำล่วงหน้า 
-                    มีดัชนี WQI &gt; 75 (สภาวะแย่มาก หรือ ไม่เหมาะสมอย่างยิ่ง) เพื่อเตรียมสารบำบัดล่วงหน้าก่อนสถานการณ์จริง
+                    ระบบส่งสัญญาณแจ้งเตือนอัตโนมัติผ่าน Telegram API ใน 2 กรณี: (1) เมื่อตรวจพบว่าแนวโน้มการย่อยสลายไขมันชะลอตัวหรือหยุดนิ่ง (Plateau — กิจกรรม Bacillus ลดลง) 
+                    และ (2) เมื่อค่า FDEI (%) ถึงเกณฑ์เป้าหมายที่ตั้งไว้ในหน้าตั้งค่าระบบ (แจ้งครั้งเดียวต่อรอบการทดลอง)
                   </p>
                 </div>
               </div>

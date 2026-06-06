@@ -2,8 +2,8 @@ import React, { useState } from "react";
 import Navbar from "../components/Navbar";
 import TimeSeriesChart from "../components/TimeSeriesChart";
 import client from "../api/client";
-import { SENSOR_TYPES } from "../utils/wqi";
-import { Calendar, Search, Download, Database, Check, Layers, AlertCircle, Menu, Droplet } from "lucide-react";
+import { SENSOR_TYPES } from "../utils/fdei";
+import { Calendar, Search, Download, Database, Check, Layers, AlertCircle, Menu, FlaskConical } from "lucide-react";
 
 export default function Analytics() {
   // Set default dates representing late May 2026 (matching current dataset)
@@ -19,6 +19,7 @@ export default function Analytics() {
     tds: true,
     turbidity: false,
     temp: true,
+    fdei: true,
   });
 
   // Applied states (frozen at the moment of click)
@@ -31,6 +32,7 @@ export default function Analytics() {
     tds: true,
     turbidity: false,
     temp: true,
+    fdei: true,
   });
 
   const [historicalData, setHistoricalData] = useState({}); // { ph: { Node01: [...], Node02: [...] }, ... }
@@ -64,7 +66,7 @@ export default function Analytics() {
       return;
     }
     if (activeNodes.length === 0) {
-      setError("กรุณาเลือกอย่างน้อย 1 จุดตรวจวัด");
+      setError("กรุณาเลือกอย่างน้อย 1 ถังปฏิกรณ์");
       setLoading(false);
       return;
     }
@@ -119,6 +121,7 @@ export default function Analytics() {
                 tds: null,
                 turbidity: null,
                 temp: null,
+                fdei: null,
               };
             }
             rowsMap[key][param] = pt.value;
@@ -155,7 +158,7 @@ export default function Analytics() {
     }
 
     // CSV Headers
-    const headers = ["node_id", "timestamp", "ph", "tds", "turbidity", "temperature", "co2"];
+    const headers = ["node_id", "timestamp", "ph", "tds", "turbidity", "temperature", "co2", "fdei"];
     
     // Convert rows to CSV format
     const csvRows = [
@@ -168,7 +171,8 @@ export default function Analytics() {
           row.tds !== null && row.tds !== undefined ? row.tds : "",
           row.turbidity !== null && row.turbidity !== undefined ? row.turbidity : "",
           row.temp !== null && row.temp !== undefined ? row.temp : "",
-          row.co2 !== null && row.co2 !== undefined ? row.co2 : ""
+          row.co2 !== null && row.co2 !== undefined ? row.co2 : "",
+          row.fdei !== null && row.fdei !== undefined ? row.fdei : ""
         ];
         return rowData.join(",");
       })
@@ -179,7 +183,7 @@ export default function Analytics() {
     const url = URL.createObjectURL(blob);
     const link = document.createElement("a");
     link.setAttribute("href", url);
-    link.setAttribute("download", `water_quality_raw_table_export.csv`);
+    link.setAttribute("download", `fog_degradation_raw_table_export.csv`);
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
@@ -203,7 +207,7 @@ export default function Analytics() {
       const url = window.URL.createObjectURL(new Blob([response.data]));
       const link = document.createElement("a");
       link.href = url;
-      link.setAttribute("download", `water_quality_${node}_${param}_export.csv`);
+      link.setAttribute("download", `fog_degradation_${node}_${param}_export.csv`);
       document.body.appendChild(link);
       link.click();
       link.remove();
@@ -258,9 +262,9 @@ export default function Analytics() {
       <div className="md:hidden flex h-16 items-center justify-between px-4 bg-slate-900/90 border-b border-slate-800/80 sticky top-0 z-40 backdrop-blur-md">
         <div className="flex items-center gap-2">
           <div className="w-8 h-8 rounded-lg bg-gradient-to-tr from-cyan-500 to-blue-600 flex items-center justify-center">
-            <Droplet className="w-4 h-4 text-white" />
+            <FlaskConical className="w-4 h-4 text-white" />
           </div>
-          <span className="font-bold text-white text-sm tracking-wider">WQ-MONITOR</span>
+          <span className="font-bold text-white text-sm tracking-wider">FOG-MONITOR</span>
         </div>
         <button 
           onClick={() => setIsSidebarOpen(true)}
@@ -280,7 +284,7 @@ export default function Analytics() {
           <header className="mb-8">
             <h1 className="text-xl md:text-2xl font-black text-white">วิเคราะห์ข้อมูลเชิงลึก (Analytics)</h1>
             <p className="text-xs md:text-sm text-slate-400 font-semibold mt-1">
-              เครื่องมือกองข้อมูลความถี่ ดึงข้อมูลย้อนหลัง และตรวจสอบเปรียบเทียบแนวโน้มคุณภาพน้ำระหว่างสถานี
+              เครื่องมือดึงข้อมูลย้อนหลัง และตรวจสอบเปรียบเทียบแนวโน้มการย่อยสลายไขมันระหว่างถังทดลองและถังควบคุม
             </p>
           </header>
 
@@ -320,10 +324,10 @@ export default function Analytics() {
                 </div>
               </div>
 
-              {/* Checkbox Node Picker (No direction suffix) */}
+              {/* Checkbox Node Picker */}
               <div className="space-y-3">
                 <label className="text-xs text-slate-400 font-bold uppercase tracking-wider">
-                  สถานีจุดตรวจวัด
+                  ถังปฏิกรณ์ชีวภาพ
                 </label>
                 <div className="flex flex-col gap-2">
                   {["Node01", "Node02"].map((node) => (
@@ -336,7 +340,7 @@ export default function Analytics() {
                           : "bg-slate-900/40 text-slate-500 border-slate-800"
                       }`}
                     >
-                      <span>{node === "Node01" ? "จุดตรวจวัดที่ 1" : "จุดตรวจวัดที่ 2"}</span>
+                      <span>{node === "Node01" ? "ถังทดลอง (Sample)" : "ถังควบคุม (Control)"}</span>
                       {selectedNodes[node] && <Check className="w-4 h-4" />}
                     </button>
                   ))}
@@ -394,7 +398,7 @@ export default function Analytics() {
           ) : !hasSearched ? (
             <div className="flex flex-col items-center justify-center h-[35vh] gap-3 glass-panel border border-slate-800/80 rounded-3xl p-6">
               <Database className="w-8 h-8 text-slate-500" />
-              <p className="text-sm text-slate-400 font-bold">กรุณาตั้งค่าช่วงเวลา พารามิเตอร์ และจุดวัด แล้วกดปุ่ม "เริ่มค้นหาและเปรียบเทียบ"</p>
+              <p className="text-sm text-slate-400 font-bold">กรุณาตั้งค่าช่วงเวลา พารามิเตอร์ และถังปฏิกรณ์ แล้วกดปุ่ม "เริ่มค้นหาและเปรียบเทียบ"</p>
             </div>
           ) : (
             <div className="space-y-8">
@@ -422,7 +426,7 @@ export default function Analytics() {
                               className="flex items-center gap-1.5 bg-slate-800/50 hover:bg-slate-800 text-slate-300 border border-slate-700/50 rounded-xl px-3 py-1.5 text-[10px] font-bold transition-all duration-300 w-full sm:w-auto justify-center"
                             >
                               <Download className="w-3.5 h-3.5" />
-                              <span>Export CSV ({node === "Node01" ? "จุดตรวจวัดที่ 1" : "จุดตรวจวัดที่ 2"})</span>
+                              <span>Export CSV ({node === "Node01" ? "ถังทดลอง (Sample)" : "ถังควบคุม (Control)"})</span>
                             </button>
                           ))}
                         </div>
@@ -460,12 +464,13 @@ export default function Analytics() {
                     <thead>
                       <tr className="border-b border-slate-800/40 text-xs text-slate-400 font-bold uppercase bg-slate-900/20">
                         <th className="py-4 px-6">วัน-เวลา</th>
-                        <th className="py-4 px-6">จุดตรวจวัด</th>
+                        <th className="py-4 px-6">ถังปฏิกรณ์</th>
                         <th className="py-4 px-3 text-center">pH</th>
                         <th className="py-4 px-3 text-center">CO₂ (ppm)</th>
                         <th className="py-4 px-3 text-center">TDS (ppm)</th>
                         <th className="py-4 px-3 text-center">Turbidity (NTU)</th>
                         <th className="py-4 px-3 text-center">อุณหภูมิ (°C)</th>
+                        <th className="py-4 px-3 text-center">FDEI (%)</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-800/30 text-xs font-semibold">
@@ -483,7 +488,7 @@ export default function Analytics() {
                           <tr key={index} className="hover:bg-slate-800/10 transition-colors duration-200">
                             <td className="py-4 px-6 text-slate-400">{formattedTime}</td>
                             <td className="py-4 px-6 text-white font-bold">
-                              {row.node_id === "Node01" ? "จุดตรวจวัดที่ 1" : "จุดตรวจวัดที่ 2"}
+                              {row.node_id === "Node01" ? "ถังทดลอง (Sample)" : "ถังควบคุม (Control)"}
                             </td>
                             <td className="py-4 px-3 text-center text-slate-200">
                               {row.ph !== null && row.ph !== undefined ? row.ph.toFixed(2) : "-"}
@@ -500,13 +505,16 @@ export default function Analytics() {
                             <td className="py-4 px-3 text-center text-slate-200">
                               {row.temp !== null && row.temp !== undefined ? row.temp.toFixed(1) : "-"}
                             </td>
+                            <td className="py-4 px-3 text-center text-slate-200">
+                              {row.fdei !== null && row.fdei !== undefined ? row.fdei.toFixed(1) + "%" : "-"}
+                            </td>
                           </tr>
                         );
                       })}
                       {allTableData.length === 0 && (
                         <tr>
-                          <td colSpan="7" className="py-8 px-6 text-center text-slate-500 font-bold">
-                            ไม่พบข้อมูลในช่วงเวลาและสถานีที่ระบุ
+                          <td colSpan="8" className="py-8 px-6 text-center text-slate-500 font-bold">
+                            ไม่พบข้อมูลในช่วงเวลาและถังปฏิกรณ์ที่ระบุ
                           </td>
                         </tr>
                       )}

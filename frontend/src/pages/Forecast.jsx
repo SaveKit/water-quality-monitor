@@ -1,8 +1,8 @@
 import React, { useEffect, useState } from "react";
 import Navbar from "../components/Navbar";
-import WQICard from "../components/WQICard";
+import FDEICard from "../components/FDEICard";
 import client from "../api/client";
-import { Cpu, Activity, Info, Brain, Menu, Droplet } from "lucide-react";
+import { Cpu, Activity, Info, Brain, Menu, FlaskConical } from "lucide-react";
 
 export default function Forecast() {
   const [forecastData, setForecastData] = useState([]);
@@ -32,9 +32,9 @@ export default function Forecast() {
       <div className="md:hidden flex h-16 items-center justify-between px-4 bg-slate-900/90 border-b border-slate-800/80 sticky top-0 z-40 backdrop-blur-md">
         <div className="flex items-center gap-2">
           <div className="w-8 h-8 rounded-lg bg-gradient-to-tr from-cyan-500 to-blue-600 flex items-center justify-center">
-            <Droplet className="w-4 h-4 text-white" />
+            <FlaskConical className="w-4 h-4 text-white" />
           </div>
-          <span className="font-bold text-white text-sm tracking-wider">WQ-MONITOR</span>
+          <span className="font-bold text-white text-sm tracking-wider">FOG-MONITOR</span>
         </div>
         <button 
           onClick={() => setIsSidebarOpen(true)}
@@ -52,8 +52,8 @@ export default function Forecast() {
         <div className="p-4 md:p-8">
           {/* Header */}
           <header className="mb-8">
-            <h1 className="text-xl md:text-2xl font-black text-white">การพยากรณ์ดัชนีคุณภาพน้ำ (AI Forecast)</h1>
-            <p className="text-xs md:text-sm text-slate-400 font-semibold mt-1">คาดการณ์ระดับคุณภาพน้ำทิ้งล่วงหน้า 24 ชั่วโมง เพื่อเตรียมการบำบัดเชิงรุก</p>
+            <h1 className="text-xl md:text-2xl font-black text-white">การพยากรณ์การย่อยสลายไขมัน (FDEI AI Forecast)</h1>
+            <p className="text-xs md:text-sm text-slate-400 font-semibold mt-1">คาดการณ์ประสิทธิภาพการย่อยสลาย FOG ล่วงหน้า 24 ชั่วโมง เพื่อวางแผนควบคุมถังปฏิกรณ์ชีวภาพเชิงรุก</p>
           </header>
 
           {/* Info Bar - Model Specification */}
@@ -62,7 +62,7 @@ export default function Forecast() {
               <Cpu className="w-5 h-5 text-blue-400" />
             </div>
             <div>
-              <h4 className="text-sm font-bold text-white">AI Prediction Model v1.2 — ความแม่นยำ 94.6%</h4>
+              <h4 className="text-sm font-bold text-white">แบบจำลองการทำนาย CNN-GRU-SVR v2.0 — ค่า MAPE: 8.93%</h4>
               <p className="text-xs text-slate-400 font-semibold mt-0.5">โมเดลโครงข่ายประสาทผสมผสาน CNN-GRU-SVR ประมวลผลบนระบบ AWS Lambda</p>
             </div>
           </div>
@@ -84,13 +84,14 @@ export default function Forecast() {
               {/* Forecast Cards Grid (2 Nodes) */}
               <section className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                 {forecastData.map((nodeForecast) => {
-                  const nodeName = nodeForecast.node_id === "Node01" ? "จุดตรวจวัดที่ 1" : "จุดตรวจวัดที่ 2";
+                  const nodeName = nodeForecast.node_id === "Node01" ? "ถังทดลอง (Sample)" : "ถังควบคุม (Control)";
                   return (
-                    <WQICard
+                    <FDEICard
                       key={nodeForecast.node_id}
                       nodeId={nodeForecast.node_id}
                       nodeTitle={nodeName}
-                      wqi={nodeForecast.forecasted_wqi}
+                      fdei={nodeForecast.forecasted_fdei}
+                      co2Cumulative={nodeForecast.forecasted_co2}
                       timestamp={nodeForecast.timestamp}
                       isForecast={true}
                     />

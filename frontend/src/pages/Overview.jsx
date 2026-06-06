@@ -1,10 +1,10 @@
 import React, { useEffect, useState } from "react";
 import Navbar from "../components/Navbar";
-import WQICard from "../components/WQICard";
+import FDEICard from "../components/FDEICard";
 import SensorTable from "../components/SensorTable";
 import client from "../api/client";
-import { SENSOR_TYPES } from "../utils/wqi";
-import { RefreshCw, Activity, AlertTriangle, Menu, Droplet } from "lucide-react";
+import { SENSOR_TYPES } from "../utils/fdei";
+import { RefreshCw, Activity, AlertTriangle, Menu, FlaskConical } from "lucide-react";
 import { LineChart, Line, ResponsiveContainer, Tooltip } from "recharts";
 
 // Mini Sparkline Trend Chart Component
@@ -68,7 +68,7 @@ function MiniTrendChart({ dataNode01 = [], dataNode02 = [], unit }) {
             labelFormatter={() => "แนวโน้ม"}
             formatter={(value, name) => [
               `${Number(value).toFixed(2)} ${unit}`,
-              name === "Node01" ? "จุดตรวจวัดที่ 1" : "จุดตรวจวัดที่ 2",
+              name === "Node01" ? "ถังทดลอง (Sample)" : "ถังควบคุม (Control)",
             ]}
           />
           <Line
@@ -97,7 +97,7 @@ function MiniTrendChart({ dataNode01 = [], dataNode02 = [], unit }) {
 
 export default function Overview() {
   const [realtimeData, setRealtimeData] = useState([]);
-  const [wqiData, setWqiData] = useState([]);
+  const [fdeiData, setFdeiData] = useState([]);
   const [trendsData, setTrendsData] = useState({});
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -113,12 +113,12 @@ export default function Overview() {
       const endIso = new Date().toISOString();
       const startIso = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
       
-      const [realtimeRes, wqiRes] = await Promise.all([
+      const [realtimeRes, fdeiRes] = await Promise.all([
         client.get("/api/data/realtime"),
-        client.get("/api/data/wqi"),
+        client.get("/api/data/fdei"),
       ]);
       setRealtimeData(realtimeRes.data);
-      setWqiData(wqiRes.data);
+      setFdeiData(fdeiRes.data);
 
       // Fetch trends for all parameters
       const paramsList = ["ph", "co2", "tds", "turbidity", "temp"];
@@ -166,12 +166,12 @@ export default function Overview() {
   useEffect(() => {
     fetchData();
 
-    // Auto-refresh every 1 minute (60,000 ms) as requested
-    console.log("Setting up auto-refresh interval (1 minute)...");
+    // Auto-refresh every 5 minutes (300,000 ms) matching bioreactor sampling rate
+    console.log("Setting up auto-refresh interval (5 minutes)...");
     const interval = setInterval(() => {
       console.log("Auto-refreshing dashboard and trends data...");
       fetchData();
-    }, 60000);
+    }, 300000);
 
     return () => clearInterval(interval);
   }, []);
@@ -182,9 +182,9 @@ export default function Overview() {
       <div className="md:hidden flex h-16 items-center justify-between px-4 bg-slate-900/90 border-b border-slate-800/80 sticky top-0 z-40 backdrop-blur-md">
         <div className="flex items-center gap-2">
           <div className="w-8 h-8 rounded-lg bg-gradient-to-tr from-cyan-500 to-blue-600 flex items-center justify-center">
-            <Droplet className="w-4 h-4 text-white" />
+            <FlaskConical className="w-4 h-4 text-white" />
           </div>
-          <span className="font-bold text-white text-sm tracking-wider">WQ-MONITOR</span>
+          <span className="font-bold text-white text-sm tracking-wider">FOG-MONITOR</span>
         </div>
         <button
           onClick={() => setIsSidebarOpen(true)}
@@ -203,8 +203,8 @@ export default function Overview() {
           {/* Header */}
           <header className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-8">
             <div>
-              <h1 className="text-xl md:text-2xl font-black text-white">ระบบตรวจสอบคุณภาพน้ำเรียลไทม์</h1>
-              <p className="text-xs md:text-sm text-slate-400 font-semibold mt-1">ภาพรวมคุณภาพน้ำทิ้งและสถานะเซ็นเซอร์ประมวลผล สจล.</p>
+              <h1 className="text-xl md:text-2xl font-black text-white">ระบบเฝ้าระวังการย่อยสลายไขมัน (FOG) เรียลไทม์</h1>
+              <p className="text-xs md:text-sm text-slate-400 font-semibold mt-1">ภาพรวมถังปฏิกรณ์ชีวภาพ ดัชนี FDEI และสถานะเซ็นเซอร์ สจล.</p>
             </div>
 
             <button
@@ -227,21 +227,22 @@ export default function Overview() {
           {loading ? (
             <div className="flex flex-col items-center justify-center h-[50vh] gap-3">
               <Activity className="w-10 h-10 text-cyan-500 animate-pulse" />
-              <p className="text-sm text-slate-400 font-bold">กำลังโหลดข้อมูลดัชนี WQI และระบบตรวจวัด...</p>
+              <p className="text-sm text-slate-400 font-bold">กำลังโหลดข้อมูลดัชนี FDEI และระบบตรวจวัด...</p>
             </div>
           ) : (
             <div className="space-y-8">
-              {/* WQI Cards Grid (2 Nodes) */}
+              {/* FDEI Cards Grid (2 Nodes) */}
               <section className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                {wqiData.map((nodeWqi) => {
-                  const nodeName = nodeWqi.node_id === "Node01" ? "จุดตรวจวัดที่ 1" : "จุดตรวจวัดที่ 2";
+                {fdeiData.map((nodeFdei) => {
+                  const nodeName = nodeFdei.node_id === "Node01" ? "ถังทดลอง (Sample)" : "ถังควบคุม (Control)";
                   return (
-                    <WQICard
-                      key={nodeWqi.node_id}
-                      nodeId={nodeWqi.node_id}
+                    <FDEICard
+                      key={nodeFdei.node_id}
+                      nodeId={nodeFdei.node_id}
                       nodeTitle={nodeName}
-                      wqi={nodeWqi.wqi}
-                      timestamp={nodeWqi.timestamp}
+                      fdei={nodeFdei.fdei}
+                      co2Cumulative={nodeFdei.co2_cumulative}
+                      timestamp={nodeFdei.timestamp}
                       isForecast={false}
                     />
                   );
@@ -254,10 +255,10 @@ export default function Overview() {
                   <h3 className="text-xs font-black text-slate-300 uppercase tracking-wider">
                     แนวโน้มพารามิเตอร์ล่าสุด (24 ชั่วโมงที่ผ่านมา)
                   </h3>
-                  <span className="text-[10px] text-slate-500 font-bold">เปรียบเทียบจุดวัด 1 & 2</span>
+                  <span className="text-[10px] text-slate-500 font-bold">เปรียบเทียบถังทดลอง & ถังควบคุม</span>
                 </div>
                 <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4">
-                  {SENSOR_TYPES.map((type) => {
+                  {SENSOR_TYPES.filter((type) => type.key !== "fdei").map((type) => {
                     const paramData = trendsData[type.key] || { Node01: [], Node02: [] };
                     const latestN1 = paramData.Node01?.[paramData.Node01.length - 1]?.value;
                     const latestN2 = paramData.Node02?.[paramData.Node02.length - 1]?.value;
@@ -290,7 +291,7 @@ export default function Overview() {
 
               {/* Detailed Sensor Readings Table */}
               <section>
-                <SensorTable realtimeData={realtimeData} wqiData={wqiData} />
+                <SensorTable realtimeData={realtimeData} />
               </section>
             </div>
           )}

@@ -4,6 +4,7 @@ import Overview from "./pages/Overview";
 import Forecast from "./pages/Forecast";
 import Analytics from "./pages/Analytics";
 import AlertHistory from "./pages/AlertHistory";
+import Settings from "./pages/Settings";
 import Login from "./pages/Login";
 
 // ProtectedRoute Wrapper Component
@@ -68,6 +69,14 @@ export default function App() {
           element={
             <ProtectedRoute>
               <AlertHistory />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/settings"
+          element={
+            <ProtectedRoute>
+              <Settings />
             </ProtectedRoute>
           }
         />

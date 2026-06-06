@@ -1,11 +1,12 @@
 import React from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { 
-  Droplet, 
+  FlaskConical, 
   LayoutDashboard, 
   TrendingUp, 
   LineChart, 
   AlertTriangle, 
+  Settings2,
   LogOut,
   User,
   X
@@ -18,9 +19,10 @@ export default function Navbar({ isOpen, onClose }) {
 
   const navItems = [
     { label: "ภาพรวมระบบ", path: "/", icon: LayoutDashboard },
-    { label: "พยากรณ์คุณภาพน้ำ", path: "/forecast", icon: TrendingUp },
+    { label: "พยากรณ์การย่อยสลายไขมัน (FDEI)", path: "/forecast", icon: TrendingUp },
     { label: "วิเคราะห์เชิงลึก", path: "/analytics", icon: LineChart },
     { label: "ประวัติการเตือนภัย", path: "/alerts", icon: AlertTriangle },
+    { label: "ตั้งค่าระบบ", path: "/settings", icon: Settings2 },
   ];
 
   const handleLogout = () => {
@@ -47,11 +49,11 @@ export default function Navbar({ isOpen, onClose }) {
           <div className="h-16 flex items-center justify-between px-6 border-b border-slate-800/50">
             <div className="flex items-center gap-3">
               <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-cyan-500 to-blue-600 flex items-center justify-center shadow-lg shadow-cyan-500/20">
-                <Droplet className="w-5 h-5 text-white" />
+                <FlaskConical className="w-5 h-5 text-white" />
               </div>
               <div>
-                <h1 className="font-bold text-sm tracking-wide text-white leading-none">WQ-MONITOR</h1>
-                <span className="text-[10px] text-slate-400 font-medium">KMITL IoT System</span>
+                <h1 className="font-bold text-sm tracking-wide text-white leading-none">FOG-MONITOR</h1>
+                <span className="text-[10px] text-slate-400 font-medium">KMITL Bioreactor</span>
               </div>
             </div>
 

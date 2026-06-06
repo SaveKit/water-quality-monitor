@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import axios from "axios";
-import { Droplet, Lock, Mail, AlertCircle, ArrowRight } from "lucide-react";
+import { FlaskConical, Lock, Mail, AlertCircle, ArrowRight } from "lucide-react";
 
 export default function Login() {
   const [username, setUsername] = useState("");
@@ -85,10 +85,10 @@ export default function Login() {
         {/* Brand logo header */}
         <div className="flex flex-col items-center mb-8">
           <div className="w-14 h-14 rounded-2xl bg-gradient-to-tr from-cyan-500 to-blue-600 flex items-center justify-center shadow-lg shadow-cyan-500/30 mb-4">
-            <Droplet className="w-7 h-7 text-white" />
+            <FlaskConical className="w-7 h-7 text-white" />
           </div>
-          <h2 className="text-2xl font-black tracking-tight text-white">ระบบเฝ้าระวังคุณภาพน้ำ</h2>
-          <p className="text-slate-400 text-sm mt-1 font-semibold">ลงชื่อเข้าใช้งาน Dashboard (KMITL)</p>
+          <h2 className="text-2xl font-black tracking-tight text-white">ระบบเฝ้าระวังการย่อยสลายไขมัน</h2>
+          <p className="text-slate-400 text-sm mt-1 font-semibold">ลงชื่อเข้าใช้งาน FOG Dashboard (KMITL)</p>
         </div>
 
         {error && (
