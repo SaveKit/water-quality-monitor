@@ -12,7 +12,7 @@
 
 ```
 .
-├── backend/                  # FastAPI — deployed on AWS App Runner
+├── backend/                  # FastAPI — deployed on AWS Lambda + API Gateway
 │   ├── main.py
 │   ├── routers/
 │   │   └── data.py           # API endpoints
@@ -73,8 +73,8 @@
 | Layer         | Technology                      | Hosting              |
 | ------------- | ------------------------------- | -------------------- |
 | Frontend      | Vite + React 18 + TailwindCSS   | AWS S3 + CloudFront  |
-| Backend API   | FastAPI (Python 3.11+)          | AWS App Runner       |
-| Database      | Amazon DynamoDB                 | AWS (ap-southeast-1) |
+| Backend API   | FastAPI (Python 3.11+) + Mangum | AWS Lambda + API Gateway |
+| Database      | Amazon DynamoDB                 | AWS (ap-southeast-1) 🗄️ |
 | Auth          | AWS Cognito (JWT / RS256)       | AWS                  |
 | IoT Ingestion | AWS IoT Core → Rules Engine     | AWS                  |
 | AI Inference  | AWS Lambda (CNN-GRU-SVR container) | AWS Lambda        |
@@ -211,11 +211,12 @@ GET /api/data/alerts
 
 **Tables (DynamoDB):**
 
-| Table             | Partition Key | Sort Key                 | Attributes                                       |
-| ----------------- | ------------- | ------------------------ | ------------------------------------------------ |
-| `SensorReadings`  | `node_id` (S) | `timestamp` (S, ISO8601) | `ph`, `co2`, `tds`, `turbidity`, `temp`          |
-| `ForecastResults` | `node_id` (S) | `timestamp` (S)          | `forecasted_co2`, `forecasted_fdei`              |
-| `AlertHistory`    | `node_id` (S) | `timestamp` (S)          | `fdei_value`, `alert_type`, `recommendation`     |
+| Table             | Partition Key   | Sort Key                 | Attributes                                       |
+| ----------------- | --------------- | ------------------------ | ------------------------------------------------ |
+| `SensorReadings`  | `node_id` (S)   | `timestamp` (N, epoch ms)| `ph`, `co2`, `tds`, `turbidity`, `temp`          |
+| `ForecastResults` | `node_id` (S)   | `timestamp` (S)          | `forecasted_co2`, `forecasted_fdei`              |
+| `AlertHistory`    | `node_id` (S)   | `timestamp` (S)          | `fdei_value`, `alert_type`, `recommendation`     |
+| `SystemSettings`  | `setting_id` (S)| —                        | `fog_day0`, `fdei_alert_threshold`               |
 
 **Methods ที่ต้อง implement:**
 
@@ -360,6 +361,7 @@ AWS_REGION=ap-southeast-1
 DYNAMODB_TABLE_SENSOR=SensorReadings
 DYNAMODB_TABLE_FORECAST=ForecastResults
 DYNAMODB_TABLE_ALERTS=AlertHistory
+DYNAMODB_TABLE_SETTINGS=SystemSettings
 COGNITO_USER_POOL_ID=ap-southeast-1_XXXXXXX
 COGNITO_APP_CLIENT_ID=XXXXXXXXXXXXXXXX
 ```
